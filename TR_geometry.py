@@ -10,12 +10,13 @@ from pymol import cmd
 import Bio
 from Bio import PDB
 from Bio.PDB import Polypeptide
-from Bio.PDB.MMCIFParser import MMCIFParser
+from Bio.PDB.PDBParser import PDBParser
 
 import scipy
 from scipy.spatial.transform import Rotation
 import sklearn
 from sklearn.decomposition import PCA
+from skimage.measure import CircleModel
 
 def circle_fit(C):
     def to_minimize(center,points=C):
@@ -49,30 +50,11 @@ def create_list(list_indexes):   #Used to process the unit_def argument
     list_indexes=list_indexes.split(',')
     L=[]
     for item in list_indexes:
-        item=item.strip().split('-')
+        item=item.strip().split('_')
         item=[int(item[0]),int(item[1])]
         L.append(item)
     list_indexes=L
     return L
-
-def find_rotation(A,B):
-    n=len(A)
-    m=len(B)
-    j=abs(n-m)
-    best_fit=np.inf
-    flag=n >= m
-    rot=None
-    for i in range(j+1):
-        if flag:
-            clipped1=A[i:i+m]
-            clipped2=B
-        else:
-            clipped1=A
-            clipped2=B[i:i+n]
-        new_fit=Rotation.align_vectors(clipped2,clipped1)
-        if new_fit[1] < best_fit:
-            rot=new_fit[0]
-    return rot
         
 
 
@@ -83,13 +65,14 @@ arg_parser.add_argument('filepath',action='store',help='Path to input file')
 arg_parser.add_argument('chain',action='store',help='Chain')
 arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1-e1,s2-e2,...')
 arg_parser.add_argument('-o',action='store',help='Output file if desired, ex. Outputs\my_pdb.csv')
+arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
 args=arg_parser.parse_args()
 filepath=args.filepath
 list_indexes=args.unit_def
 
 #---------------------------------------------------------------------------------------------------------------------------------
 
-parser=MMCIFParser(QUIET=True)   #Parse .cif file, define units, calculate center of each unit
+parser=PDBParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
 structure=parser.get_structure('structure',Path(filepath))
 
 chain=structure[0][args.chain]
@@ -120,16 +103,19 @@ def rotation_fit(C,window=6):
     index_list=[]
     rotation_list=[]
     centers_list=[]
-    for i in range(N-window+1):
+    for i in range(max(N-window+1,1)):
         indexes=[*range(i,min(i+window,N))]
-        data_to_fit=data[min(i,N-window):min(i+window,N)]
+        data_to_fit=data[indexes]
         pca=PCA()
         pca.fit(data_to_fit)
         data_transformed=pca.transform(data_to_fit)
 
         #Delete third axis, then fit ellipse
         circle_data=np.delete(data_transformed,2,1)
-        c=circle_fit(circle_data).tolist()
+        circle=CircleModel()
+        circle.estimate(circle_data)
+        c=list(circle.params[0:2])
+        #c=circle_fit(circle_data).tolist()
         c.append(0)
         centers_list.append(pca.inverse_transform(c))
         index_list.append(indexes)
@@ -147,7 +133,6 @@ curv_centers=[(rot_centers[i]+rot_centers[i+1])/2 for i in range(N-1)]
 rot_angles=[get_angle(geometric_centers[i]-curv_centers[i],geometric_centers[i+1]-curv_centers[i]) for i in range(N-1)]
 if np.mean(rot_angles)<0.1:  # When there is no curvature, we fix the pitch axis
     rot_centers=[rot_centers[0] for i in range(len(rot_centers))]
-
 #---------------------------------------------------------------------------------------------------------------------------------
 
 new_pitch_axis=[]
@@ -170,11 +155,42 @@ rots.insert(0,Rotation.align_vectors([new_twist_axis[0],new_pitch_axis[0]],[new_
 rots.append(Rotation.align_vectors([new_twist_axis[-2],new_pitch_axis[-2]],[new_twist_axis[-1],new_pitch_axis[-1]])[0])
 
 units_rots=[]
+pca=PCA()
+units_comps=[]
+
+for i in range(N):
+    unit=units_coords[i]-geometric_centers[i]
+    pca.fit(unit)
+    comps=pca.components_
+    if i > 0:   # We need to do 2 things
+        def_comps=[]
+        rot_comps=rots[i-1].apply(comps)
+        ref_comps=units_comps[i-1]
+        
+        for j in [0,1]:
+            coeffs=[abs(np.dot(vec,ref_comps[j])) for vec in rot_comps]
+            index=np.argmax(coeffs)
+            def_comps.append(comps[index])
+            comps=np.delete(comps,index,0)
+            rot_comps=np.delete(rot_comps,index,0)
+        comps=def_comps
+        rot_comps=rots[i-1].apply(comps)
+        
+        for j in [0,1]:
+            if np.dot(rot_comps[j],ref_comps[j])<0:
+                comps[j]=-comps[j]
+        
+                     
+        comps=np.append(comps,[np.cross(comps[0],comps[1])],axis=0)   #Third component is fully determined by the first 2 
+    else:
+        comps[2]=np.cross(comps[0],comps[1])
+    units_comps.append(comps)  
+    
 for i in range(N-1):
-    unit1=units_coords[i]-geometric_centers[i]
-    unit2=units_coords[i+1]-geometric_centers[i+1]
-    unit2=rots[i].apply(unit2)
-    units_rots.append(find_rotation(unit1,unit2))
+    dir_unit1=units_comps[i]
+    dir_unit2=units_comps[i+1]
+    dir_unit2=rots[i].apply(dir_unit2)
+    units_rots.append(Rotation.align_vectors(dir_unit2,dir_unit1)[0])
 
 pitchlist=[]
 twistlist=[]
@@ -209,7 +225,7 @@ starts.append('std deviation')
 ends=[unit[1] for unit in units_ids]
 ends.append('-')
 ends.append('-')
-pdbs=[filepath[-8:-4] for i in range(N+2)]
+pdbs=[filepath.split('\\')[-1][:-11] for i in range(N+2)]
 chains=[args.chain for i in range(N+2)]
 
 d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist}
@@ -231,51 +247,48 @@ except Exception:
 #-----------------------------------------------------------------------------------------------------------------------------------
 #Pymol drawing
 #Pymol drawing
-pymol.finish_launching()
-cmd.load(filepath,format='cif')
-cmd.hide('all')
-start_vector=units_coords[0][-1]-units_coords[0][0]
-for i in range(N):   #Place pseudoatoms to draw distances and angles
-    cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
-    cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+6*new_twist_axis[i]))
-    cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[i]+6*new_pitch_axis[i]))
-    cmd.pseudoatom('start_ref',pos=tuple(geometric_centers[i]-0.5*start_vector))
-    cmd.pseudoatom('end_ref',pos=tuple(geometric_centers[i]+0.5*start_vector))
-    if i < N-1:
-        start_vector=units_rots[i].apply(rots[i].apply(start_vector,inverse=True))
-    
-for i in range(len(curv_centers)):
-    cmd.pseudoatom('rot_centers',pos=tuple(curv_centers[i]))
-    
+if args.draw:
+    pymol.finish_launching()
+    cmd.load(filepath,format='pdb')
+    cmd.hide('all')
+    for i in range(N):   #Place pseudoatoms to draw distances and angles
+        cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
+        cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+6*new_twist_axis[i]))
+        cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[i]+6*new_pitch_axis[i]))
+        cmd.pseudoatom('first_component',pos=tuple(geometric_centers[i]+12*units_comps[i][0]))
+        cmd.pseudoatom('second_component',pos=tuple(geometric_centers[i]+12*units_comps[i][1]))
+        cmd.pseudoatom('third_component',pos=tuple(geometric_centers[i]+12*units_comps[i][2]))
 
-for i in range(N-1):  #Draw rotation angles and protein geometry
-    cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(i+1)))
-    cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
-    cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
-    cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
-    cmd.distance('superaxis',selection1='point1',selection2='point2')
+    for i in range(len(curv_centers)):
+        cmd.pseudoatom('rot_centers',pos=tuple(curv_centers[i]))
+
+
+    for i in range(N-1):  #Draw rotation angles and protein geometry
+        cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(i+1)))
+        cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
+        cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
+        cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
+        cmd.distance('superaxis',selection1='point1',selection2='point2')
+
+
+    for i in range(N):   #Draw reference system for each unit and principal components
+        cmd.select('geo_center',selection='model geo_centers and name PS{}'.format(str(i+1)))
+        cmd.select('twist',selection='model twist_ref and name PS{}'.format(str(i+1)))
+        cmd.select('pitch',selection='model pitch_ref and name PS{}'.format(str(i+1)))
+        cmd.select('ref_first',selection='model first_component and name PS{}'.format(str(i+1)))
+        cmd.select('ref_second',selection='model second_component and name PS{}'.format(str(i+1)))
+        cmd.select('ref_third',selection='model third_component and name PS{}'.format(str(i+1)))
+        cmd.distance('twist_axis',selection1='geo_center',selection2='twist')
+        cmd.distance('pitch_axis',selection1='geo_center',selection2='pitch')
+        cmd.distance('pca_first',selection1='geo_center',selection2='ref_first')
+        cmd.distance('pca_second',selection1='geo_center',selection2='ref_second')
+        cmd.distance('pca_third',selection1='geo_center',selection2='ref_third')
         
-        
-for i in range(N):   #Draw reference system for each unit
-    cmd.select('geo_center',selection='model geo_centers and name PS{}'.format(str(i+1)))
-    cmd.select('twist',selection='model twist_ref and name PS{}'.format(str(i+1)))
-    cmd.select('pitch',selection='model pitch_ref and name PS{}'.format(str(i+1)))
-    cmd.distance('twist_axis',selection1='geo_center',selection2='twist')
-    cmd.distance('pitch_axis',selection1='geo_center',selection2='pitch')
-    
-for i in range(N-1): #Draw vectors representing unit orientations
-    cmd.select('start_point_1',selection='model start_ref and name PS{}'.format(str(i+1)))
-    cmd.select('end_point_1',selection='model end_ref and name PS{}'.format(str(i+1)))
-    cmd.select('start_point_2',selection='model start_ref and name PS{}'.format(str(i+2)))
-    cmd.select('end_point_2',selection='model end_ref and name PS{}'.format(str(i+2)))
-    cmd.distance('unit_vectors',selection1='start_point_1',selection2='end_point_1')
-    cmd.distance('unit_vectors',selection1='start_point_2',selection2='end_point_2')
-    cmd.distance('units_axis',selection1='start_point_1',selection2='start_point_2')
-    cmd.distance('units_axis',selection1='end_point_1',selection2='end_point_2')
-        
-cmd.color('green','twist_axis')
-cmd.color('blue','pitch_axis')
-cmd.color('orange','unit_vectors')
-cmd.color('red','units_axis')
-cmd.hide('labels')
-cmd.deselect()
+
+    cmd.color('green','twist_axis')
+    cmd.color('blue','pitch_axis')
+    cmd.color('red','pca_first')
+    cmd.color('orange','pca_second')
+    cmd.color('white','pca_third')
+    cmd.hide('labels')
+    cmd.deselect()
