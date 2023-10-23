@@ -16,7 +16,7 @@ import scipy
 from scipy.spatial.transform import Rotation
 import sklearn
 from sklearn.decomposition import PCA
-from skimage.measure import CircleModel
+from skimage.measure import CircleModel,EllipseModel
 
 def circle_fit(C):
     def to_minimize(center,points=C):
@@ -51,9 +51,8 @@ def create_list(list_indexes):   #Used to process the unit_def argument
     L=[]
     for item in list_indexes:
         item=item.strip().split('_')
-        item=[int(item[0]),int(item[1])]
+        item=(int(item[0]),int(item[1]))
         L.append(item)
-    list_indexes=L
     return L
         
 
@@ -63,7 +62,8 @@ def create_list(list_indexes):   #Used to process the unit_def argument
 arg_parser=argparse.ArgumentParser()   #Parse command line
 arg_parser.add_argument('filepath',action='store',help='Path to input file')
 arg_parser.add_argument('chain',action='store',help='Chain')
-arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1-e1,s2-e2,...')
+arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1_e1,s2_e2,...')
+arg_parser.add_argument('-ins',action='store',help='Starts and ends of insertions, formatted like the units')
 arg_parser.add_argument('-o',action='store',help='Output file if desired, ex. Outputs\my_pdb.csv')
 arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
 args=arg_parser.parse_args()
@@ -77,82 +77,106 @@ structure=parser.get_structure('structure',Path(filepath))
 
 chain=structure[0][args.chain]
 units_ids=create_list(list_indexes)
-
-units=[]     #Add residues to each unit
-for limits in units_ids:
-    a,b=limits
-    unit=[]
-    for residue in chain:
-        if a<=residue.get_id()[1]<=b:
-            if Polypeptide.is_aa(residue):
+try:   #If we have insertions, we make sure to remove them from the structure
+    ins_ids=create_list(args.ins)
+    units=[]
+    for limits in units_ids:
+        a,b=limits
+        unit_ins=[ins for ins in ins_ids if a<=ins[0]<=b or a<=ins[1]<=b]
+        unit=[]
+        for residue in chain:
+            res_id=residue.get_id()[1]
+            res_in_ins=np.any([ins[0]<=res_id<=ins[1] for ins in unit_ins])
+            if a<=res_id<=b and not res_in_ins and Polypeptide.is_aa(residue):
                 unit.append(residue)
-    units.append(unit)
+        units.append(unit)
+                   
+except Exception:
+    units=[]    
+    for limits in units_ids:
+        a,b=limits
+        unit=[]
+        for residue in chain:
+            if a<=residue.get_id()[1]<=b:
+                if Polypeptide.is_aa(residue):
+                    unit.append(residue)
+        units.append(unit)
 
 units_coords=[]   #For each unit, store coordinate of each CA atom
+region=[]
 for unit in units:
-    units_coords.append([residue['CA'].get_coord() for residue in unit])
+    ca_coords=[residue['CA'].get_coord() for residue in unit]
+    units_coords.append(ca_coords)
+    region.extend(ca_coords)
 
 geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
 N=len(geometric_centers)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 #CURVATURE
-def rotation_fit(C,window=6):
+def rotation_fit(C=geometric_centers,window=6):
     data=np.asarray(C)
     N=len(data)
     index_list=[]
     rotation_list=[]
     centers_list=[]
-    for i in range(max(N-window+1,1)):
+    res_list=[]
+    for i in range(max(N-window+1,1)):  #Fit circle to each window
         indexes=[*range(i,min(i+window,N))]
         data_to_fit=data[indexes]
         pca=PCA()
         pca.fit(data_to_fit)
         data_transformed=pca.transform(data_to_fit)
 
-        #Delete third axis, then fit ellipse
+
+        #Delete third axis, then fit circle
         circle_data=np.delete(data_transformed,2,1)
-        circle=CircleModel()
+        circle=CircleModel() 
         circle.estimate(circle_data)
+        res=circle.residuals(circle_data)
         c=list(circle.params[0:2])
-        #c=circle_fit(circle_data).tolist()
         c.append(0)
         centers_list.append(pca.inverse_transform(c))
         index_list.append(indexes)
+        res_list.append(np.sum(np.square(res)))
+        
+    def_centers=np.empty((N-1,3))
+    best_res=np.full(N-1,np.inf)
+    for center,indexes,res in zip(centers_list,index_list,res_list):   #For each unit pair, select circle with best fit
+        act_indexes=indexes[:-1]
+        mask=best_res[act_indexes] > res
+        def_centers[act_indexes]=center
+        best_res[act_indexes]=res
+    print(np.mean(best_res))
+    return def_centers
 
-    av_centers=[]
-    m=len(centers_list)
-    for i in range(N):
-        indexes=[j for j in range(m) if i in index_list[j]]
-        to_av=[centers_list[j] for j in indexes]
-        av_centers.append(np.mean(to_av,axis=0))
-    return av_centers
+if N>=3:
+    rot_centers=rotation_fit()
+    rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(N-1)]
+    if np.mean(rot_angles)<0.1:  # When there is no curvature, we fix the pitch axis
+        rot_centers=[rot_centers[0] for i in range(len(rot_centers))]    
+    
+    
 
-rot_centers=rotation_fit(geometric_centers,6)
-curv_centers=[(rot_centers[i]+rot_centers[i+1])/2 for i in range(N-1)]
-rot_angles=[get_angle(geometric_centers[i]-curv_centers[i],geometric_centers[i+1]-curv_centers[i]) for i in range(N-1)]
-if np.mean(rot_angles)<0.1:  # When there is no curvature, we fix the pitch axis
-    rot_centers=[rot_centers[0] for i in range(len(rot_centers))]
 #---------------------------------------------------------------------------------------------------------------------------------
 
-new_pitch_axis=[]
-for i in range(N):
-    new_pitch_axis.append(rot_centers[i]-geometric_centers[i])
-    new_pitch_axis[-1] /= norm(new_pitch_axis[-1])
-
-new_twist_axis=[geometric_centers[i+2]-geometric_centers[i] for i in range(N-2)]
-for i in range(N-2):
-    new_twist_axis[i] /= norm(new_twist_axis[i])
-
-rots=[Rotation.align_vectors([new_twist_axis[i],new_pitch_axis[1:-1][i]],[new_twist_axis[i+1],new_pitch_axis[1:-1][i+1]])[0] for i in range(N-3)]
-
-new_twist_axis.insert(0,rots[0].apply(new_twist_axis[0]))
-new_twist_axis.append(rots[-1].apply(new_twist_axis[-1],inverse=True))
-for i in range(N):
-    new_twist_axis[i]=orthogonalize(new_twist_axis[i],new_pitch_axis[i])
+#For each pair of units, pitch axis and twist axis store the tuple of reference vectors for each of the two units
+pitch_axis=[]
+for i in range(N-1):
+    vec_1=rot_centers[i]-geometric_centers[i]
+    vec_1/=norm(vec_1)
+    vec_2=rot_centers[i]-geometric_centers[i+1]
+    vec_2/=norm(vec_2)
+    pitch_axis.append((vec_1,vec_2))
     
-rots.insert(0,Rotation.align_vectors([new_twist_axis[0],new_pitch_axis[0]],[new_twist_axis[1],new_pitch_axis[1]])[0])
-rots.append(Rotation.align_vectors([new_twist_axis[-2],new_pitch_axis[-2]],[new_twist_axis[-1],new_pitch_axis[-1]])[0])
+twist_axis=[]
+for i in range(N-1):
+    twist_vect=geometric_centers[i+1]-geometric_centers[i]
+    vec_1=orthogonalize(twist_vect,pitch_axis[i][0])
+    vec_2=orthogonalize(twist_vect,pitch_axis[i][1])
+    twist_axis.append((vec_1,vec_2))
+    
+rots=[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0] for i in range(N-1)]
 
 units_rots=[]
 pca=PCA()
@@ -167,7 +191,7 @@ for i in range(N):
         rot_comps=rots[i-1].apply(comps)
         ref_comps=units_comps[i-1]
         
-        for j in [0,1]:
+        for j in [0,1]:   # Match the components by similarity (assumption: no large rotations between units)
             coeffs=[abs(np.dot(vec,ref_comps[j])) for vec in rot_comps]
             index=np.argmax(coeffs)
             def_comps.append(comps[index])
@@ -176,7 +200,7 @@ for i in range(N):
         comps=def_comps
         rot_comps=rots[i-1].apply(comps)
         
-        for j in [0,1]:
+        for j in [0,1]:  # Make sure the components are oriented in the same direction
             if np.dot(rot_comps[j],ref_comps[j])<0:
                 comps[j]=-comps[j]
         
@@ -184,7 +208,7 @@ for i in range(N):
         comps=np.append(comps,[np.cross(comps[0],comps[1])],axis=0)   #Third component is fully determined by the first 2 
     else:
         comps[2]=np.cross(comps[0],comps[1])
-    units_comps.append(comps)  
+    units_comps.append(comps) 
     
 for i in range(N-1):
     dir_unit1=units_comps[i]
@@ -195,17 +219,18 @@ for i in range(N-1):
 pitchlist=[]
 twistlist=[]
 handednesslist=[]
-for i in range(N-1):
-    ref_pitch=units_rots[i].apply(new_twist_axis[i])
-    pitchlist.append(dihedral_angle(new_twist_axis[i],ref_pitch,new_pitch_axis[i])[0])
+for i in range(N-1):   # Decompose rotation into pitch and twist
+    ref_pitch=units_rots[i].apply(twist_axis[i][0])
+    pitchlist.append(dihedral_angle(twist_axis[i][0],ref_pitch,pitch_axis[i][0])[0])
     
-    ref_twist=units_rots[i].apply(new_pitch_axis[i])
-    res=dihedral_angle(new_pitch_axis[i],ref_twist,new_twist_axis[i])
+    ref_twist=units_rots[i].apply(pitch_axis[i][0])
+    res=dihedral_angle(pitch_axis[i][0],ref_twist,twist_axis[i][0])
     twistlist.append(res[0])
     handednesslist.append(res[1])
 
 #---------------------------------------------------------------------------------------------------------------------------------
-rot_angles.append(np.mean(rot_angles))
+# DataFrame output
+rot_angles.append(np.mean(rot_angles))   
 twistlist.append(np.mean(twistlist))
 pitchlist.append(np.mean(pitchlist))
 handednesslist.append(np.mean(handednesslist))
@@ -246,21 +271,18 @@ except Exception:
     
 #-----------------------------------------------------------------------------------------------------------------------------------
 #Pymol drawing
-#Pymol drawing
 if args.draw:
     pymol.finish_launching()
     cmd.load(filepath,format='pdb')
     cmd.hide('all')
     for i in range(N):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
-        cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+6*new_twist_axis[i]))
-        cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[i]+6*new_pitch_axis[i]))
         cmd.pseudoatom('first_component',pos=tuple(geometric_centers[i]+12*units_comps[i][0]))
         cmd.pseudoatom('second_component',pos=tuple(geometric_centers[i]+12*units_comps[i][1]))
         cmd.pseudoatom('third_component',pos=tuple(geometric_centers[i]+12*units_comps[i][2]))
 
-    for i in range(len(curv_centers)):
-        cmd.pseudoatom('rot_centers',pos=tuple(curv_centers[i]))
+    for i in range(len(rot_centers)):
+        cmd.pseudoatom('rot_centers',pos=tuple(rot_centers[i]))
 
 
     for i in range(N-1):  #Draw rotation angles and protein geometry
@@ -273,20 +295,13 @@ if args.draw:
 
     for i in range(N):   #Draw reference system for each unit and principal components
         cmd.select('geo_center',selection='model geo_centers and name PS{}'.format(str(i+1)))
-        cmd.select('twist',selection='model twist_ref and name PS{}'.format(str(i+1)))
-        cmd.select('pitch',selection='model pitch_ref and name PS{}'.format(str(i+1)))
         cmd.select('ref_first',selection='model first_component and name PS{}'.format(str(i+1)))
         cmd.select('ref_second',selection='model second_component and name PS{}'.format(str(i+1)))
         cmd.select('ref_third',selection='model third_component and name PS{}'.format(str(i+1)))
-        cmd.distance('twist_axis',selection1='geo_center',selection2='twist')
-        cmd.distance('pitch_axis',selection1='geo_center',selection2='pitch')
         cmd.distance('pca_first',selection1='geo_center',selection2='ref_first')
         cmd.distance('pca_second',selection1='geo_center',selection2='ref_second')
         cmd.distance('pca_third',selection1='geo_center',selection2='ref_third')
         
-
-    cmd.color('green','twist_axis')
-    cmd.color('blue','pitch_axis')
     cmd.color('red','pca_first')
     cmd.color('orange','pca_second')
     cmd.color('white','pca_third')

@@ -2,10 +2,11 @@
 
 
 ## Command line syntax
-python TR_geometry.py input_path chain units_def -o output_path --draw
+python TR_geometry.py input_path chain units_def -o output_path -ins insertions--draw
 - Input_path: path to .pdb file to analyze
 - Chain: chain to analyze
 - Units_def: insertion codes delimiting the units, written as s1-e1,s2-e2,...
+- -ins insertions: insertion codes delimiting insertions, written as the units
 - -o output_path: optional argument. If used, the output of the program will be saved as a csv file within the specified directory. Any directory in the path must already exist.
 - --draw: if used, the output will include a PyMOL drawing of the protein structure
 
@@ -29,16 +30,19 @@ EX: python TR_geometry.py Data\4cj9.pdb A 30-60,61-93,94-126,127-159,160-192,193
 
 The program first computes the rotation between units in the following way:
 First we take sliding windows of 6 units, projecting them on a plane with PCA, and fitting a circle on the resulting points. We then reverse the PCA transformation to get the center of rotation in the 3D space.
-Then for each unit barycenter, we find a rotation center relative to that unit by taking the average of the centers found with each window that includes that unit.
-Then for each pair of units, we take the midpoint between their respective rotation centers and use it to compute the rotation between them.
+Then for each pair of units, we find a center of rotation for that pair as the center of rotation that included that pair and gave the best fit in terms of RMSD.
 
 ### Twist, pitch and handedness
 
-Then for each unit, the program computes two reference axes (twist and pitch axis).
+We proceed selecting a sliding pair of consecutive units
 
-The twist axis is an approximated tangent to the superhelical axis, computed as the direction between the last geometric center and the next one.
+Then for each unit of the pair, the program computes two reference axes (twist and pitch axis).
 
-The pitch axis is the vector connecting the geometric center to the center of rotation, orthogonalized w.r.t the twist axis.
+The pitch axis is the vector connecting the geometric center to the center of rotation relative to that pair.
+
+The twist axis is the vector connecting the two barycenters, orthogonalized w.r.t. the two different pitch axes.
+
+
 
 Then for each pair of units, we rotate the reference axes of the second one to overlap those of the first one.
 We then apply this rotation to the second unit, to bring it within the reference frame of the first one.
