@@ -23,15 +23,6 @@ import sklearn
 from sklearn.decomposition import PCA
 from skimage.measure import CircleModel,EllipseModel
 
-def circle_fit(C):
-    def to_minimize(center,points=C):
-        Ri=np.mean([norm(center-point) for point in points])
-        return np.array([np.abs(norm(center-point)-Ri) for point in points])
-    x0=(C[0]+C[-1])/2
-    c=scipy.optimize.leastsq(to_minimize,x0)[0]
-    del to_minimize
-    return c
-
 def orthogonalize(v,n):
     n_orth=n/norm(n)
     v_orth = v-np.dot(v,n_orth)*n_orth
@@ -73,7 +64,7 @@ def widest_circle(c,data):   # Widest circular crown that's within units
             nearest=is_nearest
     return nearest-farthest  # We use scipy.minimize, so we return the opposite of the width
         
-def get_unit_rotation(unit1,unit2):
+def get_unit_rotation(unit1,unit2):  # Align 2 units using CEalign, and return rotation
     unit1_toalign=copy.deepcopy(unit1)
     chain1=Chain('A1')
     chain2=Chain('A2')
@@ -156,39 +147,6 @@ N=len(geometric_centers)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 #CURVATURE
-def rotation_fit(C=units_coords,window=6,centers=geometric_centers):
-    N=len(C)
-    index_list=[]
-    rotation_list=[]
-    centers_list=[]
-    res_list=[]
-    for i in range(max(N-window+1,1)):  #Fit circle to each window
-        indexes=[*range(i,min(i+window,N))]
-        data_to_fit=[ca for ca in unit for unit in C[indexes]]
-        pca=PCA()
-        pca.fit(data_to_fit)
-        data_transformed=pca.transform(data_to_fit)
-
-
-        #Delete third axis, then fit circle
-        circle_data=np.delete(data_transformed,2,1)
-        circle=CircleModel() 
-        circle.estimate(circle_data)
-        res=circle.residuals(circle_data)
-        c=list(circle.params[0:2])
-        c.append(0)
-        centers_list.append(pca.inverse_transform(c))
-        index_list.append(indexes)
-        res_list.append(np.mean(np.square(res)))
-        
-    def_centers=np.empty((N-1,3))
-    best_res=np.full(N-1,np.inf)
-    for center,indexes,res in zip(centers_list,index_list,res_list):   #For each unit pair, select circle with best fit
-        act_indexes=indexes[:-1]
-        mask=best_res[act_indexes] > res
-        def_centers[act_indexes]=center
-        best_res[act_indexes]=res
-    return def_centers
 
 def widest_circle_fit(C=units_coords,centers=geometric_centers,window=6):   # Alternative method for curvature
     N=len(C)
@@ -254,42 +212,8 @@ for i in range(N-1):
 rots=[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0] for i in range(N-1)]
 
 units_rots=[]
-pca=PCA()
-units_comps=[]
-
-for i in range(N):
-    unit=units_coords[i]-geometric_centers[i]
-    pca.fit(unit)
-    comps=pca.components_
-    if i > 0:   # We need to do 2 things
-        def_comps=[]
-        rot_comps=rots[i-1].apply(comps)
-        ref_comps=units_comps[i-1]
-        
-        for j in [0,1]:   # Match the components by similarity (assumption: no large rotations between units)
-            coeffs=[abs(np.dot(vec,ref_comps[j])) for vec in rot_comps]
-            index=np.argmax(coeffs)
-            def_comps.append(comps[index])
-            comps=np.delete(comps,index,0)
-            rot_comps=np.delete(rot_comps,index,0)
-        comps=def_comps
-        rot_comps=rots[i-1].apply(comps)
-        
-        for j in [0,1]:  # Make sure the components are oriented in the same direction
-            if np.dot(rot_comps[j],ref_comps[j])<0:
-                comps[j]=-comps[j]
-        
-                     
-        comps=np.append(comps,[np.cross(comps[0],comps[1])],axis=0)   #Third component is fully determined by the first 2 
-    else:
-        comps[2]=np.cross(comps[0],comps[1])
-    units_comps.append(comps) 
     
 for i in range(N-1):
-    #dir_unit1=units_comps[i]
-    #dir_unit2=units_comps[i+1]
-    #dir_unit2=rots[i].apply(dir_unit2)
-    #units_rots.append(Rotation.align_vectors(dir_unit2,dir_unit1)[0])
     units_rots.append(get_unit_rotation(units[i],units[i+1]))
 
 pitchlist=[]
@@ -351,11 +275,17 @@ if args.draw:
     pymol.finish_launching()
     cmd.load(filepath,format='pdb')
     cmd.hide('all')
+    unit_vector=np.cross(twist_axis[0][0],pitch_axis[0][0])
+    unit_vector /= unit_vector
     for i in range(N):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
-        cmd.pseudoatom('first_component',pos=tuple(geometric_centers[i]+12*units_comps[i][0]))
-        cmd.pseudoatom('second_component',pos=tuple(geometric_centers[i]+12*units_comps[i][1]))
-        cmd.pseudoatom('third_component',pos=tuple(geometric_centers[i]+12*units_comps[i][2]))
+        cmd.pseudoatom('ref_1',pos=tuple(geometric_centers[i]+6*unit_vector))
+        cmd.pseudoatom('ref_2',pos=tuple(geometric_centers[i]-6*unit_vector))
+        cmd.select('unit_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
+        cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
+        cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
+        if i < N-1:
+            unit_vector=units_rots[i].apply(unit_vector)
 
 
     for i in range(len(rot_centers)):
@@ -371,22 +301,20 @@ if args.draw:
         cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
         cmd.distance('superaxis',selection1='point1',selection2='point2')
         cmd.distance('twist_axis',selection1='point1',selection2='twist_point')
-
-
-    for i in range(N):   #Draw reference system for each unit and principal components
-        cmd.select('geo_center',selection='model geo_centers and name PS{}'.format(str(i+1)))
-        cmd.select('ref_first',selection='model first_component and name PS{}'.format(str(i+1)))
-        cmd.select('ref_second',selection='model second_component and name PS{}'.format(str(i+1)))
-        cmd.select('ref_third',selection='model third_component and name PS{}'.format(str(i+1)))
         
-        cmd.distance('pca_first',selection1='geo_center',selection2='ref_first')
-        cmd.distance('pca_second',selection1='geo_center',selection2='ref_second')
-        cmd.distance('pca_third',selection1='geo_center',selection2='ref_third')
+        cmd.select('point1_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
+        cmd.select('point1_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
+        cmd.select('point2_1',selection='model ref_1 and name PS{}'.format(str(i+2)))
+        cmd.select('point2_2',selection='model ref_2 and name PS{}'.format(str(i+2)))
+        cmd.distance('dist_1',selection1='point1_1',selection2='point2_1')
+        cmd.distance('dist_2',selection1='point1_2',selection2='point2_2')
         
         
-    cmd.color('red','pca_first')
-    cmd.color('orange','pca_second')
-    cmd.color('white','pca_third')
+        
+        
+    cmd.color('orange','unit_vector')
+    cmd.color('red','dist_1')
+    cmd.color('red','dist_2')
     cmd.color('green','twist_axis')
     cmd.hide('labels')
     cmd.deselect()
