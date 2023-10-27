@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import copy
 
 import numpy as np
 from numpy.linalg import norm
@@ -11,6 +12,9 @@ import Bio
 from Bio import PDB
 from Bio.PDB import Polypeptide
 from Bio.PDB.PDBParser import PDBParser
+from Bio.PDB.Chain import Chain
+from Bio.PDB.Model import Model
+from Bio.PDB.cealign import CEAligner
 
 import scipy
 from scipy.spatial.transform import Rotation
@@ -69,7 +73,29 @@ def widest_circle(c,data):   # Widest circular crown that's within units
             nearest=is_nearest
     return nearest-farthest  # We use scipy.minimize, so we return the opposite of the width
         
-        
+def get_unit_rotation(unit1,unit2):
+    unit1_toalign=copy.deepcopy(unit1)
+    chain1=Chain('A1')
+    chain2=Chain('A2')
+    for residue in unit1_toalign:
+        chain1.add(residue)
+    for residue in unit2:
+        chain2.add(residue)
+    
+    model1=Model('U1')
+    model2=Model('U2')
+    model1.add(chain1)
+    model2.add(chain2)
+    
+    aligner=CEAligner()
+    aligner.set_reference(model2)
+    aligner.align(model1,transform=True)
+    coord1=np.asarray([residue['CA'].get_coord() for residue in unit1])
+    coord2=np.asarray([residue['CA'].get_coord() for residue in model1['A1']])
+    
+    coord1 -= np.mean(coord1,axis=0)
+    coord2 -= np.mean(coord2,axis=0)
+    return Rotation.align_vectors(coord2,coord1)[0]
 
 
 #---------------------------------------------------------------------------------------------------------------------------------
@@ -260,10 +286,11 @@ for i in range(N):
     units_comps.append(comps) 
     
 for i in range(N-1):
-    dir_unit1=units_comps[i]
-    dir_unit2=units_comps[i+1]
-    dir_unit2=rots[i].apply(dir_unit2)
-    units_rots.append(Rotation.align_vectors(dir_unit2,dir_unit1)[0])
+    #dir_unit1=units_comps[i]
+    #dir_unit2=units_comps[i+1]
+    #dir_unit2=rots[i].apply(dir_unit2)
+    #units_rots.append(Rotation.align_vectors(dir_unit2,dir_unit1)[0])
+    units_rots.append(get_unit_rotation(units[i],units[i+1]))
 
 pitchlist=[]
 twistlist=[]
