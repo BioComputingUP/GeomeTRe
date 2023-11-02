@@ -64,92 +64,40 @@ def widest_circle(c,data):   # Widest circular crown that's within units
             nearest=is_nearest
     return nearest-farthest  # We use scipy.minimize, so we return the opposite of the width
         
-def get_unit_rotation(unit1,unit2):  # Align 2 units using CEalign, and return rotation
-    unit1_toalign=copy.deepcopy(unit1)
+def get_unit_rotation(unit1,unit2,rot):  # Align 2 units using CEalign, and return rotation
     chain1=Chain('A1')
     chain2=Chain('A2')
+    unit1_toalign=copy.deepcopy(unit1)
+    unit1_copy=copy.deepcopy(unit1)
+    unit2_copy=copy.deepcopy(unit2)
+    
     for residue in unit1_toalign:
         chain1.add(residue)
-    for residue in unit2:
+    for residue in unit2_copy:
         chain2.add(residue)
+        
+    chain2.transform(rot.inv().as_matrix(),np.zeros(3))  #Align reference axes of the units
     
     model1=Model('U1')
     model2=Model('U2')
     model1.add(chain1)
     model2.add(chain2)
+    win_size=min([8,len(chain1)//2,len(chain2)//2])
+    try:
+        aligner=CEAligner(window_size=win_size,max_gap=20)
+        aligner.set_reference(model2)
+        aligner.align(model1,transform=True)
+        coord1=np.asarray([residue['CA'].get_coord() for residue in unit1_copy])
+        coord2=np.asarray([residue['CA'].get_coord() for residue in model1['A1']])
+
+        coord1 -= np.mean(coord1,axis=0)
+        coord2 -= np.mean(coord2,axis=0)
+        return Rotation.align_vectors(coord2,coord1)[0]
+    except:
+        return None
     
-    aligner=CEAligner()
-    aligner.set_reference(model2)
-    aligner.align(model1,transform=True)
-    coord1=np.asarray([residue['CA'].get_coord() for residue in unit1])
-    coord2=np.asarray([residue['CA'].get_coord() for residue in model1['A1']])
-    
-    coord1 -= np.mean(coord1,axis=0)
-    coord2 -= np.mean(coord2,axis=0)
-    return Rotation.align_vectors(coord2,coord1)[0]
-
-
-#---------------------------------------------------------------------------------------------------------------------------------
-
-arg_parser=argparse.ArgumentParser()   #Parse command line
-arg_parser.add_argument('filepath',action='store',help='Path to input file')
-arg_parser.add_argument('chain',action='store',help='Chain')
-arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1_e1,s2_e2,...')
-arg_parser.add_argument('-ins',action='store',help='Starts and ends of insertions, formatted like the units')
-arg_parser.add_argument('-o',action='store',help='Output file if desired, ex. Outputs\my_pdb.csv')
-arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
-args=arg_parser.parse_args()
-filepath=args.filepath
-list_indexes=args.unit_def
-
-#---------------------------------------------------------------------------------------------------------------------------------
-
-parser=PDBParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
-structure=parser.get_structure('structure',Path(filepath))
-
-chain=structure[0][args.chain]
-units_ids=create_list(list_indexes)
-try:   #If we have insertions, we make sure to remove them from the structure
-    ins_ids=create_list(args.ins)
-    units=[]
-    for limits in units_ids:
-        a,b=limits
-        unit_ins=[ins for ins in ins_ids if a<=ins[0]<=b or a<=ins[1]<=b]
-        unit=[]
-        for residue in chain:
-            res_id=residue.get_id()[1]
-            res_in_ins=np.any([ins[0]<=res_id<=ins[1] for ins in unit_ins])
-            if a<=res_id<=b and not res_in_ins and Polypeptide.is_aa(residue):
-                unit.append(residue)
-        units.append(unit)
-                   
-except Exception:
-    units=[]    
-    for limits in units_ids:
-        a,b=limits
-        unit=[]
-        for residue in chain:
-            if a<=residue.get_id()[1]<=b:
-                if Polypeptide.is_aa(residue):
-                    unit.append(residue)
-        units.append(unit)
-
-units_coords=[]   #For each unit, store coordinate of each CA atom
-region=[]
-for unit in units:
-    ca_coords=[residue['CA'].get_coord() for residue in unit]
-    if len(ca_coords) > 0:
-        units_coords.append(ca_coords)
-        region.extend(ca_coords)
-
-geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
-N=len(geometric_centers)
-#----------------------------------------------------------------------------------------------------------------------------------
-
-#CURVATURE
-
-def widest_circle_fit(C=units_coords,centers=geometric_centers,window=6):   # Alternative method for curvature
-    N=len(C)
+def widest_circle_fit(units,centers,window=6):   # Alternative method for curvature
+    N=len(units)
     index_list=[]
     centers_list=[]
     score_list=[]
@@ -157,7 +105,7 @@ def widest_circle_fit(C=units_coords,centers=geometric_centers,window=6):   # Al
     for i in range(max(N-window+1,1)):
         min_index=i
         max_index=min(i+window,N)
-        data_to_fit=C[min_index:max_index]
+        data_to_fit=units[min_index:max_index]
         pca_centers=centers[min_index:max_index]
         
         pca=PCA(n_components=2)  # Find plane of rotation of units, and project them onto it
@@ -183,100 +131,31 @@ def widest_circle_fit(C=units_coords,centers=geometric_centers,window=6):   # Al
         best_score[act_indexes]=score
     return def_centers
 
-if N>=3:
-    rot_centers=widest_circle_fit()
-    rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(N-1)]
-    if np.mean(rot_angles)<0.1:  # When there is no curvature, we fix the pitch axis
-        rot_centers=[rot_centers[0] for i in range(len(rot_centers))]    
+def build_ref_axes(geometric_centers,rot_centers):
+    N=len(geometric_centers)
+    pitch_axis=[]
+    for i in range(N-1):
+        vec_1=rot_centers[i]-geometric_centers[i]
+        vec_1/=norm(vec_1)
+        vec_2=rot_centers[i]-geometric_centers[i+1]
+        vec_2/=norm(vec_2)
+        pitch_axis.append((vec_1,vec_2))
+
+    twist_axis=[]
+    for i in range(N-1):
+        twist_vect=geometric_centers[i+1]-geometric_centers[i]
+        vec_1=orthogonalize(twist_vect,pitch_axis[i][0])
+        vec_2=orthogonalize(twist_vect,pitch_axis[i][1])
+        twist_axis.append((vec_1,vec_2))
     
+    rots=[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0] for i in range(N-1)]
+    return pitch_axis,twist_axis,rots
     
-
-#---------------------------------------------------------------------------------------------------------------------------------
-
-#For each pair of units, pitch axis and twist axis store the tuple of reference vectors for each of the two units
-pitch_axis=[]
-for i in range(N-1):
-    vec_1=rot_centers[i]-geometric_centers[i]
-    vec_1/=norm(vec_1)
-    vec_2=rot_centers[i]-geometric_centers[i+1]
-    vec_2/=norm(vec_2)
-    pitch_axis.append((vec_1,vec_2))
-    
-twist_axis=[]
-for i in range(N-1):
-    twist_vect=geometric_centers[i+1]-geometric_centers[i]
-    vec_1=orthogonalize(twist_vect,pitch_axis[i][0])
-    vec_2=orthogonalize(twist_vect,pitch_axis[i][1])
-    twist_axis.append((vec_1,vec_2))
-    
-rots=[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0] for i in range(N-1)]
-
-units_rots=[]
-    
-for i in range(N-1):
-    units_rots.append(get_unit_rotation(units[i],units[i+1]))
-
-pitchlist=[]
-twistlist=[]
-handednesslist=[]
-for i in range(N-1):   # Decompose rotation into pitch and twist
-    ref_pitch=units_rots[i].apply(twist_axis[i][0])
-    pitchlist.append(dihedral_angle(twist_axis[i][0],ref_pitch,pitch_axis[i][0])[0])
-    
-    ref_twist=units_rots[i].apply(pitch_axis[i][0])
-    res=dihedral_angle(pitch_axis[i][0],ref_twist,twist_axis[i][0])
-    twistlist.append(res[0])
-    handednesslist.append(res[1])
-
-#---------------------------------------------------------------------------------------------------------------------------------
-# DataFrame output
-rot_angles.append(np.mean(rot_angles))   
-twistlist.append(np.mean(twistlist))
-pitchlist.append(np.mean(pitchlist))
-handednesslist.append(np.mean(handednesslist))
-rot_angles.append(np.std(rot_angles))
-twistlist.append(np.std(twistlist))
-pitchlist.append(np.std(pitchlist))
-handednesslist.append(np.std(handednesslist))
-
-rot_angles.insert(0,0)
-twistlist.insert(0,0)
-handednesslist.insert(0,0)
-pitchlist.insert(0,0)
-
-starts=[unit[0] for unit in units_ids]
-starts.append('mean')
-starts.append('std deviation')
-ends=[unit[1] for unit in units_ids]
-ends.append('-')
-ends.append('-')
-pdbs=[filepath.split('\\')[-1][:-11] for i in range(N+2)]
-chains=[args.chain for i in range(N+2)]
-
-d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist}
-df=pd.DataFrame(data=d)
-
-
-
-with pd.option_context('display.max_rows', None,'display.max_columns', None):
-    print(df)
-
-
-try:
-    out_path=args.o
-    
-    df.to_csv(Path(out_path+'\out_'+pdbs[0]+'.csv'))
-except Exception:
-    pass
-    
-#-----------------------------------------------------------------------------------------------------------------------------------
-#Pymol drawing
-if args.draw:
+def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector):
+    N=len(geometric_centers)
     pymol.finish_launching()
     cmd.load(filepath,format='pdb')
     cmd.hide('all')
-    unit_vector=np.cross(twist_axis[0][0],pitch_axis[0][0])
-    unit_vector /= unit_vector
     for i in range(N):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
         cmd.pseudoatom('ref_1',pos=tuple(geometric_centers[i]+6*unit_vector))
@@ -285,7 +164,7 @@ if args.draw:
         cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
         cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
         if i < N-1:
-            unit_vector=units_rots[i].apply(unit_vector)
+            unit_vector=units_rots[i].apply(rots[i].apply(unit_vector,inverse=True))
 
 
     for i in range(len(rot_centers)):
@@ -318,3 +197,145 @@ if args.draw:
     cmd.color('green','twist_axis')
     cmd.hide('labels')
     cmd.deselect()
+    
+
+
+def compute_geometry(filepath,chain,units_ids,ins_ids=[],draw=False):
+    parser=PDBParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
+    structure=parser.get_structure('structure',Path(filepath))
+    chain_s=structure[0][chain]
+    if len(ins_ids)>0:   #If we have insertions, we make sure to remove them from the structure
+        units=[]
+        for limits in units_ids:
+            a,b=limits
+            unit_ins=[ins for ins in ins_ids if a<=ins[0]<=b or a<=ins[1]<=b]
+            unit=[]
+            for residue in chain_s:
+                res_id=residue.get_id()[1]
+                for atom in residue:
+                    if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
+                        residue.detach_child(atom.get_id())   
+                res_in_ins=np.any([ins[0]<=res_id<=ins[1] for ins in unit_ins])
+                if a<=res_id<=b and not res_in_ins and Polypeptide.is_aa(residue):
+                    unit.append(residue)
+            units.append(unit)
+
+    else:
+        units=[]    
+        for limits in units_ids:
+            a,b=limits
+            unit=[]
+            for residue in chain_s:
+                for atom in residue:
+                    if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
+                        residue.detach_child(atom.get_id())
+                if a<=residue.get_id()[1]<=b:
+                    if Polypeptide.is_aa(residue):
+                        unit.append(residue)
+            units.append(unit)
+    units_coords=[]   #For each unit, store coordinate of each CA atom
+    region=[]
+    for unit in units:
+        ca_coords=[residue['CA'].get_coord() for residue in unit]
+        if len(ca_coords) > 0:
+            units_coords.append(ca_coords)
+            region.extend(ca_coords)
+        else:
+            del(units_ids[i])
+            del(units[i])
+
+    geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
+    N=len(geometric_centers)
+    assert N>=3,'At least 3 units needed'
+    rot_centers=widest_circle_fit(units_coords,geometric_centers)
+    rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(N-1)]
+
+    pitch_axis,twist_axis,rots=build_ref_axes(geometric_centers,rot_centers)
+
+
+    units_rots=[]
+    for i in range(N-1):
+        res=get_unit_rotation(units[i],units[i+1],rots[i])
+        if res is not None:
+            units_rots.append(res)
+        else:
+            units_rots.append('FAIL')
+            print('CEAlign failure for units {}-{}'.format(i,i+1))
+    
+    pitchlist=[]
+    twistlist=[]
+    handednesslist=[]
+    for i in range(N-1):   # Decompose rotation into pitch and twist
+        rotation=units_rots[i]
+        if rotation != 'FAIL':
+            ref_pitch=units_rots[i].apply(twist_axis[i][0])
+            pitchlist.append(dihedral_angle(twist_axis[i][0],ref_pitch,pitch_axis[i][0])[0])
+
+            ref_twist=units_rots[i].apply(pitch_axis[i][0])
+            res=dihedral_angle(pitch_axis[i][0],ref_twist,twist_axis[i][0])
+            twistlist.append(res[0])
+            handednesslist.append(res[1])
+        else:
+            pitchlist.append(np.NAN)
+            twistlist.append(np.NAN)
+            handednesslist.append(np.NAN)
+                  
+    if draw:
+        draw_pca=PCA()
+        draw_pca.fit(units_coords[0])
+        unit_vector=draw_pca.components_[0]
+        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector)
+        
+    return rot_angles,twistlist,pitchlist,handednesslist
+
+def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path=None,draw=False,):
+    units_ids=create_list(units_ids)
+    rot_angles,twistlist,pitchlist,handednesslist=compute_geometry(filepath,args.chain,units_ids,ins_ids,draw)
+    
+    # DataFrame output
+    rot_angles.extend([np.nanmean(rot_angles),np.nanstd(rot_angles)])   
+    twistlist.extend([np.nanmean(twistlist),np.nanstd(twistlist)])
+    pitchlist.extend([np.nanmean(pitchlist),np.nanstd(pitchlist)])
+    handednesslist.extend([np.nanmean(handednesslist),np.nanstd(handednesslist)])
+    #rmsds.extend([np.nanmean(rmsds),np.nanstd(rmsds)])
+
+    rot_angles.insert(0,0)
+    twistlist.insert(0,0)
+    handednesslist.insert(0,0)
+    pitchlist.insert(0,0)
+    #rmsds.insert(0,0)
+
+    N=len(rot_angles)-2
+    starts=[unit[0] for unit in units_ids]
+    starts.append('mean')
+    starts.append('std deviation')
+    ends=[unit[1] for unit in units_ids]
+    ends.append('-')
+    ends.append('-')
+    pdb=filepath.split('\\')[-1]
+    pdbs=[pdb for i in range(N+2)]
+    chains=[chain for i in range(N+2)]
+    d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist}
+    df=pd.DataFrame(data=d)
+    if o_path:
+        df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
+    else:
+        with pd.option_context('display.max_rows', None,'display.max_columns', None):
+            print(df)
+            
+#---------------------------------------------------------------------------------------------------------------------------------
+
+if __name__=='__main__':
+    arg_parser=argparse.ArgumentParser()   #Parse command line
+    arg_parser.add_argument('filepath',action='store',help='Path to input file')
+    arg_parser.add_argument('chain',action='store',help='Chain')
+    arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1_e1,s2_e2,...')
+    arg_parser.add_argument('-ins',action='store',help='Starts and ends of insertions, formatted like the units')
+    arg_parser.add_argument('-o',action='store',help='Output file if desired, ex. Outputs\my_pdb.csv')
+    arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
+    args=arg_parser.parse_args()
+    ins=args.ins
+    if ins is None:
+        ins=''
+    o_path=args.o
+    Repeats_geometry(args.filepath,args.chain,args.unit_def,ins,o_path,args.draw)
