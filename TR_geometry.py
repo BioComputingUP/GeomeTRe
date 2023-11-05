@@ -148,7 +148,12 @@ def build_ref_axes(geometric_centers,rot_centers):
         vec_2=orthogonalize(twist_vect,pitch_axis[i][1])
         twist_axis.append((vec_1,vec_2))
     
-    rots=[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0] for i in range(N-1)]
+    rots=[]
+    for i in range(N-1):
+        try:
+            rots.append[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0]]
+        except:
+            rots.append(Rotation.from_matrix(np.eye(3)))
     return pitch_axis,twist_axis,rots
     
 def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector):
@@ -198,27 +203,42 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_r
     cmd.hide('labels')
     cmd.deselect()
     
+    
+#--------------------------------------------------------------------------------------------------------------------------------
 
-
-def compute_geometry(filepath,chain,units_ids,ins_ids=[],draw=False):
+def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
+    units_ids=create_list(units_ids)
+ 
     parser=PDBParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
     structure=parser.get_structure('structure',Path(filepath))
     chain_s=structure[0][chain]
+    if ins_ids:
+        ins_ids=create_list(ins_ids)
+    else:
+        ins_ids=[]   
     if len(ins_ids)>0:   #If we have insertions, we make sure to remove them from the structure
         units=[]
+        to_remove=[]
         for limits in units_ids:
             a,b=limits
             unit_ins=[ins for ins in ins_ids if a<=ins[0]<=b or a<=ins[1]<=b]
             unit=[]
             for residue in chain_s:
                 res_id=residue.get_id()[1]
-                for atom in residue:
-                    if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
-                        residue.detach_child(atom.get_id())   
+                #atoms_to_remove=[]
+                #for atom in residue:
+                    #if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
+                        #atoms_to_remove.append(atom.get_full_id())   
+                #[residue.detach_child(child_id[-1]) for child_id in atoms_to_remove]
                 res_in_ins=np.any([ins[0]<=res_id<=ins[1] for ins in unit_ins])
                 if a<=res_id<=b and not res_in_ins and Polypeptide.is_aa(residue):
                     unit.append(residue)
-            units.append(unit)
+            if len(unit)>0:
+                units.append(unit)
+            else:
+                to_remove.append(limits)
+        for ids in to_remove:
+            units_ids.remove(ids)
 
     else:
         units=[]    
@@ -226,24 +246,24 @@ def compute_geometry(filepath,chain,units_ids,ins_ids=[],draw=False):
             a,b=limits
             unit=[]
             for residue in chain_s:
-                for atom in residue:
-                    if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
-                        residue.detach_child(atom.get_id())
+                #atoms_to_remove=[]
+                #for atom in residue:
+                    #if atom.is_disordered() and atom.get_altloc() != "A":   # Remove disordered / duplicated atoms from residue
+                        #atoms_to_remove.append(atom.get_full_id())   
+                #[residue.detach_child(child_id[-1]) for child_id in atoms_to_remove]
                 if a<=residue.get_id()[1]<=b:
                     if Polypeptide.is_aa(residue):
                         unit.append(residue)
-            units.append(unit)
+            if len(unit)>0:
+                units.append(unit)
+            else:
+                units_ids.remove(limits)
+                
     units_coords=[]   #For each unit, store coordinate of each CA atom
-    region=[]
     for unit in units:
         ca_coords=[residue['CA'].get_coord() for residue in unit]
-        if len(ca_coords) > 0:
-            units_coords.append(ca_coords)
-            region.extend(ca_coords)
-        else:
-            del(units_ids[i])
-            del(units[i])
-
+        units_coords.append(ca_coords)
+        
     geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
     N=len(geometric_centers)
     assert N>=3,'At least 3 units needed'
@@ -280,23 +300,19 @@ def compute_geometry(filepath,chain,units_ids,ins_ids=[],draw=False):
             twistlist.append(np.NAN)
             handednesslist.append(np.NAN)
                   
-    if draw:
-        draw_pca=PCA()
-        draw_pca.fit(units_coords[0])
-        unit_vector=draw_pca.components_[0]
-        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector)
-        
-    return rot_angles,twistlist,pitchlist,handednesslist
-
-def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path=None,draw=False,):
-    units_ids=create_list(units_ids)
-    rot_angles,twistlist,pitchlist,handednesslist=compute_geometry(filepath,args.chain,units_ids,ins_ids,draw)
+    
+    
+    if not twistlist:
+        return None
+    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(pitchlist),np.nanstd(pitchlist),
+           np.nanmean(handednesslist),np.nanstd(handednesslist)]
+    
     
     # DataFrame output
-    rot_angles.extend([np.nanmean(rot_angles),np.nanstd(rot_angles)])   
-    twistlist.extend([np.nanmean(twistlist),np.nanstd(twistlist)])
-    pitchlist.extend([np.nanmean(pitchlist),np.nanstd(pitchlist)])
-    handednesslist.extend([np.nanmean(handednesslist),np.nanstd(handednesslist)])
+    rot_angles.extend(stats[0:2])   
+    twistlist.extend(stats[2:4])
+    pitchlist.extend(stats[4:6])
+    handednesslist.extend(stats[6:8])
     #rmsds.extend([np.nanmean(rmsds),np.nanstd(rmsds)])
 
     rot_angles.insert(0,0)
@@ -323,6 +339,14 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path=None,draw=False,
         with pd.option_context('display.max_rows', None,'display.max_columns', None):
             print(df)
             
+    if draw:
+        draw_pca=PCA()
+        draw_pca.fit(units_coords[0])
+        unit_vector=draw_pca.components_[0]
+        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector)
+        
+    return df.loc[1:-2],stats
+            
 #---------------------------------------------------------------------------------------------------------------------------------
 
 if __name__=='__main__':
@@ -330,12 +354,8 @@ if __name__=='__main__':
     arg_parser.add_argument('filepath',action='store',help='Path to input file')
     arg_parser.add_argument('chain',action='store',help='Chain')
     arg_parser.add_argument('unit_def',action='store',help='Unit limits, written as s1_e1,s2_e2,...')
-    arg_parser.add_argument('-ins',action='store',help='Starts and ends of insertions, formatted like the units')
-    arg_parser.add_argument('-o',action='store',help='Output file if desired, ex. Outputs\my_pdb.csv')
+    arg_parser.add_argument('-ins',action='store',default='',help='Starts and ends of insertions, formatted like the units')
+    arg_parser.add_argument('-o',action='store',default='',help='Output file if desired, ex. Outputs\my_pdb.csv')
     arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
     args=arg_parser.parse_args()
-    ins=args.ins
-    if ins is None:
-        ins=''
-    o_path=args.o
-    Repeats_geometry(args.filepath,args.chain,args.unit_def,ins,o_path,args.draw)
+    Repeats_geometry(args.filepath,args.chain,args.unit_def,args.ins,args.o,args.draw)
