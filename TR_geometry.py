@@ -247,7 +247,6 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
         
     geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
     N=len(geometric_centers)
-    assert N>=3,'At least 3 units needed'
     rot_centers=widest_circle_fit(units_coords,geometric_centers)
     rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(N-1)]
 
@@ -264,21 +263,27 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     pitchlist=[]
     twistlist=[]
     handednesslist=[]
+    yawlist=[]
     for i in range(N-1):   # Decompose rotation into pitch and twist
         rotation=units_rots[i]
         ref_pitch=rotation @ twist_axis[i][0]
         pitchlist.append(dihedral_angle(twist_axis[i][0],ref_pitch,pitch_axis[i][0])[0])
+        
         ref_twist=rotation @ pitch_axis[i][0]
         res=dihedral_angle(pitch_axis[i][0],ref_twist,twist_axis[i][0])
         twistlist.append(res[0])
         handednesslist.append(res[1])
+        
+        yaw_axis=np.cross(twist_axis[i][0],pitch_axis[i][0])
+        ref_yaw=rotation @ twist_axis[i][0]
+        yawlist.append(dihedral_angle(twist_axis[i][0],ref_yaw,yaw_axis)[0])
+
                   
     
     
     if not twistlist:
         return None
-    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(pitchlist),np.nanstd(pitchlist),
-           np.nanmean(handednesslist),np.nanstd(handednesslist),np.nanmean(tmscores),np.nanstd(tmscores)]
+    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(pitchlist),np.nanstd(pitchlist),       np.nanmean(handednesslist),np.nanstd(handednesslist),np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
     
     
     # DataFrame output
@@ -287,12 +292,14 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     pitchlist.extend(stats[4:6])
     handednesslist.extend(stats[6:8])
     tmscores.extend(stats[8:10])
+    yawlist.extend(stats[10:12])
 
     rot_angles.insert(0,0)
     twistlist.insert(0,0)
     handednesslist.insert(0,0)
     pitchlist.insert(0,0)
     tmscores.insert(0,0)
+    yawlist.insert(0,0)
 
     N=len(rot_angles)-2
     starts=[unit[0] for unit in units_ids]
@@ -305,7 +312,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     pdbs=[pdb for i in range(N+2)]
     chains=[chain for i in range(N+2)]
 
-    d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist,'TM-score':tmscores}
+    d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist,'TM-score':tmscores,'yaw':yawlist}
     df=pd.DataFrame(data=d)
     if o_path:
         df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
