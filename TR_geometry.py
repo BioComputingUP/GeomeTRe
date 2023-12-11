@@ -33,7 +33,7 @@ def orthogonalize(v,n):
     return v_orth
 
 def dihedral_angle(v1,v2,n):
-    n /= norm(n)
+    n = n / norm(n)
     v1_to_orth=v1/norm(v1)
     v2_to_orth=v2/norm(v2)
     v1_orth=orthogonalize(v1_to_orth,n)
@@ -67,10 +67,11 @@ def widest_circle(c,data):   # Widest circular crown that's within units
             nearest=is_nearest
     return nearest-farthest  # We use scipy.minimize, so we return the opposite of the width
         
-def get_unit_rotation(coords,seqs,rot):  # Align 2 units using CEalign, and return rotation
+def get_unit_rotation(coords,seqs,rotations):  # Align 2 units using CEalign, and return rotation
     coords_1=coords[0]
     coords_2=coords[1]
-    coords_2=rot.apply(coords_2)
+    coords_1=rotations[0].apply(coords_1)
+    coords_2=rotations[1].apply(coords_2)
     alignment=tmtools.tm_align(coords_1,coords_2,seqs[0],seqs[1])
     return alignment
     
@@ -134,15 +135,17 @@ def build_ref_axes(geometric_centers,rot_centers):
     rots=[]
     for i in range(N-1):
         try:
-            rots.append[Rotation.align_vectors([twist_axis[i][0],pitch_axis[i][0]],[twist_axis[i][1],pitch_axis[i][1]])[0]]
+            rots.append((Rotation.align_vectors(np.eye(3),[twist_axis[i][0],pitch_axis[i][0],np.cross(twist_axis[i][0],pitch_axis[i][0])])[0],Rotation.align_vectors(np.eye(3),[twist_axis[i][1],pitch_axis[i][1],np.cross(twist_axis[i][1],pitch_axis[i][1])])[0]))
+                        
         except:
+            print('Exception in build_ref_axes')
             rots.append(Rotation.from_matrix(np.eye(3)))
     return pitch_axis,twist_axis,rots
     
 def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector):
     N=len(geometric_centers)
     pymol.finish_launching()
-    cmd.load(filepath,format='pdb')
+    cmd.load(filepath)
     cmd.hide('all')
     for i in range(N):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
@@ -152,7 +155,8 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_r
         cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
         cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
         if i < N-1:
-            unit_vector=units_rots[i] @ (rots[i].apply(unit_vector,inverse=True))
+            unit_vector=units_rots[i] @ (rots[i][0].apply(unit_vector))
+            unit_vector=rots[i][1].apply(unit_vector,inverse=True)
 
 
     for i in range(len(rot_centers)):
@@ -266,23 +270,16 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     yawlist=[]
     for i in range(N-1):   # Decompose rotation into pitch and twist
         rotation=units_rots[i]
-        ref_pitch=rotation @ twist_axis[i][0]
-        pitchlist.append(dihedral_angle(twist_axis[i][0],ref_pitch,pitch_axis[i][0])[0])
         
         ref_twist=rotation @ pitch_axis[i][0]
-        res=dihedral_angle(pitch_axis[i][0],ref_twist,twist_axis[i][0])
-        twistlist.append(res[0])
+        res=dihedral_angle(pitch_axis[i][0],ref_twist,np.array([1,0,0]))
         handednesslist.append(res[1])
         
-        yaw_axis=np.cross(twist_axis[i][0],pitch_axis[i][0])
-        ref_yaw=rotation @ twist_axis[i][0]
-        yawlist.append(dihedral_angle(twist_axis[i][0],ref_yaw,yaw_axis)[0])
-
-                  
-    
-    
-    if not twistlist:
-        return None
+        twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('xyz')
+        twistlist.append(twist)
+        pitchlist.append(pitch)
+        yawlist.append(yaw)  
+        
     stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(pitchlist),np.nanstd(pitchlist),       np.nanmean(handednesslist),np.nanstd(handednesslist),np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
     
     
