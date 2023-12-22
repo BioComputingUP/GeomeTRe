@@ -11,6 +11,7 @@ from pymol import cmd
 import Bio
 from Bio import PDB
 from Bio.PDB import Polypeptide
+from Bio.PDB.PDBParser import PDBParser
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.Chain import Chain
 from Bio.PDB.Model import Model
@@ -47,11 +48,17 @@ def get_angle(v1,v2):
 
 def create_list(list_indexes):   #Used to process the unit_def argument
     list_indexes=list_indexes.split(',')
+    list_indexes=list(dict.fromkeys(list_indexes))
     L=[]
     for item in list_indexes:
         item=item.strip().split('_')
         item=(int(item[0]),int(item[1]))
-        L.append(item)
+        if len(L)>0:
+            if item[0] > L[-1][1]:
+                L.append(item)
+        else:
+            L.append(item)
+                
     return L
 
 def widest_circle(c,data):   # Widest circular crown that's within units
@@ -135,7 +142,7 @@ def build_ref_axes(geometric_centers,rot_centers):
     rots=[]
     for i in range(N-1):
         try:
-            rots.append((Rotation.align_vectors(np.eye(3),[twist_axis[i][0],pitch_axis[i][0],np.cross(twist_axis[i][0],pitch_axis[i][0])])[0],Rotation.align_vectors(np.eye(3),[twist_axis[i][1],pitch_axis[i][1],np.cross(twist_axis[i][1],pitch_axis[i][1])])[0]))
+            rots.append((Rotation.from_matrix(np.array([twist_axis[i][0],pitch_axis[i][0],np.cross(twist_axis[i][0],pitch_axis[i][0])])),Rotation.from_matrix(np.array([twist_axis[i][1],pitch_axis[i][1],np.cross(twist_axis[i][1],pitch_axis[i][1])]))))
                         
         except:
             print('Exception in build_ref_axes')
@@ -276,7 +283,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
         handednesslist.append(res[1])
         
         twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('xyz')
-        twistlist.append(twist)
+        twistlist.append(abs(twist))
         pitchlist.append(pitch)
         yawlist.append(yaw)  
         
