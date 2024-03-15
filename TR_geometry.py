@@ -149,51 +149,75 @@ def build_ref_axes(geometric_centers,rot_centers):
             rots.append(Rotation.from_matrix(np.eye(3)))
     return pitch_axis,twist_axis,rots
     
-def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector):
+def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector):
     N=len(geometric_centers)
     pymol.finish_launching()
     cmd.load(filepath)
     cmd.hide('all')
     for i in range(N):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
-        cmd.pseudoatom('ref_1',pos=tuple(geometric_centers[i]+6*unit_vector))
-        cmd.pseudoatom('ref_2',pos=tuple(geometric_centers[i]-6*unit_vector))
-        cmd.select('unit_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
-        cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
-        cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
+        #cmd.pseudoatom('ref_1',pos=tuple(geometric_centers[i]+6*unit_vector))
+        #cmd.pseudoatom('ref_2',pos=tuple(geometric_centers[i]-6*unit_vector))
+        #cmd.select('unit_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
+        #cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
+        #cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
         if i < N-1:
             unit_vector=units_rots[i] @ (rots[i][0].apply(unit_vector))
             unit_vector=rots[i][1].apply(unit_vector,inverse=True)
 
 
-    for i in range(len(rot_centers)):
-        cmd.pseudoatom('rot_centers',pos=tuple(rot_centers[i]))
+    #for i in range(len(rot_centers)):
+        #cmd.pseudoatom('rot_centers',pos=tuple(rot_centers[i]))
 
 
     for i in range(N-1):  #Draw rotation angles and protein geometry
-        cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+6*twist_axis[i][0]))
+        cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+9*twist_axis[i][0]))
+        cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[i]+9*pitch_axis[i][0]))
+        cmd.pseudoatom('yaw_ref',pos=tuple(geometric_centers[i]+9*np.cross(pitch_axis[i][0],twist_axis[i][0])))
         cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(i+1)))
-        cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
-        cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
+        #cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
+        #cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
         cmd.select('twist_point',selection='model twist_ref and name PS{}'.format(str(i+1)))
-        cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
-        cmd.distance('superaxis',selection1='point1',selection2='point2')
+        cmd.select('pitch_point',selection='model pitch_ref and name PS{}'.format(str(i+1)))
+        cmd.select('yaw_point',selection='model yaw_ref and name PS{}'.format(str(i+1)))
+        #cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
+        #cmd.distance('superaxis',selection1='point1',selection2='point2')
         cmd.distance('twist_axis',selection1='point1',selection2='twist_point')
+        cmd.distance('pitch_axis',selection1='point1',selection2='pitch_point')
+        cmd.distance('yaw_axis',selection1='point1',selection2='yaw_point')
         
-        cmd.select('point1_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
-        cmd.select('point1_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
-        cmd.select('point2_1',selection='model ref_1 and name PS{}'.format(str(i+2)))
-        cmd.select('point2_2',selection='model ref_2 and name PS{}'.format(str(i+2)))
-        cmd.distance('dist_1',selection1='point1_1',selection2='point2_1')
-        cmd.distance('dist_2',selection1='point1_2',selection2='point2_2')
+    cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[-1]+6*twist_axis[-1][1]))
+    cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[-1]+6*pitch_axis[-1][1]))
+    cmd.pseudoatom('yaw_ref',pos=tuple(geometric_centers[-1]+6*np.cross(pitch_axis[-1][1],twist_axis[-1][1])))
+    cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(N)))
+    #cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
+    #cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
+    cmd.select('twist_point',selection='model twist_ref and name PS{}'.format(str(N)))
+    cmd.select('pitch_point',selection='model pitch_ref and name PS{}'.format(str(N)))
+    cmd.select('yaw_point',selection='model yaw_ref and name PS{}'.format(str(N)))
+    #cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
+    #cmd.distance('superaxis',selection1='point1',selection2='point2')
+    cmd.distance('twist_axis',selection1='point1',selection2='twist_point')
+    cmd.distance('pitch_axis',selection1='point1',selection2='pitch_point')
+    cmd.distance('yaw_axis',selection1='point1',selection2='yaw_point')
+        
+        
+        #cmd.select('point1_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
+        #cmd.select('point1_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
+        #cmd.select('point2_1',selection='model ref_1 and name PS{}'.format(str(i+2)))
+        #cmd.select('point2_2',selection='model ref_2 and name PS{}'.format(str(i+2)))
+        #cmd.distance('dist_1',selection1='point1_1',selection2='point2_1')
+        #cmd.distance('dist_2',selection1='point1_2',selection2='point2_2')
         
         
         
         
-    cmd.color('orange','unit_vector')
-    cmd.color('red','dist_1')
-    cmd.color('red','dist_2')
-    cmd.color('green','twist_axis')
+    #cmd.color('orange','unit_vector')
+    #cmd.color('red','dist_1')
+    #cmd.color('red','dist_2')
+    cmd.color('red','twist_axis')
+    cmd.color('orange','pitch_axis')
+    cmd.color('white','yaw_axis')
     cmd.hide('labels')
     cmd.deselect()
     
@@ -273,34 +297,39 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     
     pitchlist=[]
     twistlist=[]
-    handednesslist=[]
+    twist_handednesslist=[]
+    pitch_handednesslist=[]
     yawlist=[]
-    for i in range(N-1):   # Decompose rotation into pitch and twist
+    for i in range(N-1):   # Decompose rotation into pitch, twist and yaw
         rotation=units_rots[i]
         
         ref_twist=rotation @ pitch_axis[i][0]
         res=dihedral_angle(pitch_axis[i][0],ref_twist,np.array([1,0,0]))
-        handednesslist.append(res[1])
         
-        twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('xyz')
+        
+        twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('zyx')
         twistlist.append(abs(twist))
-        pitchlist.append(pitch)
+        twist_handednesslist.append(np.sign(twist))
+        pitchlist.append(abs(pitch))
+        pitch_handednesslist.append(np.sign(pitch))
         yawlist.append(yaw)  
         
-    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(pitchlist),np.nanstd(pitchlist),       np.nanmean(handednesslist),np.nanstd(handednesslist),np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
+    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(twist_handednesslist),np.nanstd(twist_handednesslist),np.nanmean(pitchlist),np.nanstd(pitchlist),np.nanmean(pitch_handednesslist),np.nanstd(pitch_handednesslist),np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
     
     
     # DataFrame output
     rot_angles.extend(stats[0:2])   
     twistlist.extend(stats[2:4])
-    pitchlist.extend(stats[4:6])
-    handednesslist.extend(stats[6:8])
-    tmscores.extend(stats[8:10])
-    yawlist.extend(stats[10:12])
+    twist_handednesslist.extend(stats[4:6])
+    pitchlist.extend(stats[6:8])
+    pitch_handednesslist.extend(stats[8:10])
+    tmscores.extend(stats[10:12])
+    yawlist.extend(stats[12:14])
 
     rot_angles.insert(0,0)
     twistlist.insert(0,0)
-    handednesslist.insert(0,0)
+    twist_handednesslist.insert(0,0)
+    pitch_handednesslist.insert(0,0)
     pitchlist.insert(0,0)
     tmscores.insert(0,0)
     yawlist.insert(0,0)
@@ -316,7 +345,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     pdbs=[pdb for i in range(N+2)]
     chains=[chain for i in range(N+2)]
 
-    d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'handedness':handednesslist,'pitch':pitchlist,'TM-score':tmscores,'yaw':yawlist}
+    d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'twist_hand':twist_handednesslist,'pitch':pitchlist,'pitch_hand':pitch_handednesslist,'TM-score':tmscores,'yaw':yawlist}
     df=pd.DataFrame(data=d)
     if o_path:
         df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
@@ -328,7 +357,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
         draw_pca=PCA()
         draw_pca.fit(units_coords[0])
         unit_vector=draw_pca.components_[0]
-        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,rots,units_rots,unit_vector)
+        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector)
         
     return df,stats
             
