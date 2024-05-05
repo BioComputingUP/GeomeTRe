@@ -10,3 +10,6 @@ Where :
 - output_file.tsv is the path to the output file, which will be in a tsv format, and contain the following columns: pdb id, chain, start of the repeated region, end of the repeated region, and mean,std for all the parameters: curvature, twist (value and sign), pitch (value and sign), TM-align similarity, residual yaw.
   
 The .cif files corresponding to the pdb ids will be downloaded to a temporary directory, that is deleted at the end
+
+#### repeatsdb.tsv
+tsv file containining the proteins in the RepeatsDB database, in the format needed for run_TR_geometry.sh
