@@ -1,6 +1,9 @@
-- TR_geometry.py is the base script, containing the algorithm
-- run_TR_geometry.sh is a bash script that uses GNU parallel to run TR_geometry on a batch of proteins. Command line usage is as follows:
-bash run_TR_geometry.sh input_file.tsv njobs output_file.tsv
+#### TR_geometry.py
+The base script, containing the algorithm
+#### run_TR_geometry.sh
+A bash script that uses GNU parallel to run TR_geometry on a batch of proteins. Command line usage is as follows:
+bash run_TR_geometry.sh input_file.tsv njobs output_file.tsv.
+
 Where :
 - input_file.tsv is a tab separated file with 3 columns: the pdb id+chain (ex:ae4gA), the residue numbers delimiting the units (as in TR_geometry_documentation.md, and the residues delimiting the insertions (NA if no insertions)
 - njobs is the number of jobs to run in parallel
