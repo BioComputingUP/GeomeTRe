@@ -145,7 +145,6 @@ def build_ref_axes(geometric_centers,rot_centers):
             rots.append((Rotation.from_matrix(np.array([twist_axis[i][0],pitch_axis[i][0],np.cross(twist_axis[i][0],pitch_axis[i][0])])),Rotation.from_matrix(np.array([twist_axis[i][1],pitch_axis[i][1],np.cross(twist_axis[i][1],pitch_axis[i][1])]))))
                         
         except:
-            print('Exception in build_ref_axes')
             rots.append(Rotation.from_matrix(np.eye(3)))
     return pitch_axis,twist_axis,rots
     
@@ -224,9 +223,8 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,r
     
 #--------------------------------------------------------------------------------------------------------------------------------
 
-def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
+def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,batch=False):
     units_ids=create_list(units_ids)
- 
     parser=MMCIFParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
     structure=parser.get_structure('structure',Path(filepath))
     chain_s=structure[0][chain]
@@ -269,7 +267,6 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
                 to_remove.append(limits)
         for ids in to_remove:
             units_ids.remove(ids)
-                
     units_seqs=[]
     for unit in units:
         seq=seq1(''.join([res.get_resname() for res in unit]))
@@ -307,14 +304,17 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
         res=dihedral_angle(pitch_axis[i][0],ref_twist,np.array([1,0,0]))
         
         
-        twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('zyx')
+        twist,pitch,yaw=Rotation.from_matrix(rotation).as_euler('xyz')
         twistlist.append(abs(twist))
         twist_handednesslist.append(np.sign(twist))
         pitchlist.append(abs(pitch))
         pitch_handednesslist.append(np.sign(pitch))
-        yawlist.append(yaw)  
+        yawlist.append(abs(yaw))  
         
-    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),np.nanmean(twist_handednesslist),np.nanstd(twist_handednesslist),np.nanmean(pitchlist),np.nanstd(pitchlist),np.nanmean(pitch_handednesslist),np.nanstd(pitch_handednesslist),np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
+    stats=[np.nanmean(rot_angles),np.nanstd(rot_angles),np.nanmean(twistlist),np.nanstd(twistlist),
+           np.nanmean(twist_handednesslist),np.nanstd(twist_handednesslist),np.nanmean(pitchlist),
+           np.nanstd(pitchlist),np.nanmean(pitch_handednesslist),np.nanstd(pitch_handednesslist),
+           np.nanmean(tmscores),np.nanstd(tmscores),np.nanmean(yawlist),np.nanstd(yawlist)]
     
     
     # DataFrame output
@@ -341,17 +341,21 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,):
     ends=[unit[1] for unit in units_ids]
     ends.append('-')
     ends.append('-')
-    pdb=filepath.split('\\')[-1]
+    pdb=filepath.split('/')[-1][0:4]
     pdbs=[pdb for i in range(N+2)]
     chains=[chain for i in range(N+2)]
 
     d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'twist_hand':twist_handednesslist,'pitch':pitchlist,'pitch_hand':pitch_handednesslist,'TM-score':tmscores,'yaw':yawlist}
     df=pd.DataFrame(data=d)
-    if o_path:
-        df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
+    if not batch:
+        if o_path:
+            df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
+        else:
+            with pd.option_context('display.max_rows', None,'display.max_columns', None):
+                print(df)
     else:
-        with pd.option_context('display.max_rows', None,'display.max_columns', None):
-            print(df)
+        out_list=[pdb,chain,units_ids[0][0],units_ids[-1][1]]+stats
+        print('\t'.join(str(x) for x in out_list))
             
     if draw:
         draw_pca=PCA()
@@ -371,5 +375,6 @@ if __name__=='__main__':
     arg_parser.add_argument('-ins',action='store',default='',help='Starts and ends of insertions, formatted like the units')
     arg_parser.add_argument('-o',action='store',default='',help='Output file if desired, ex. Outputs\my_pdb.csv')
     arg_parser.add_argument('--draw',action='store_true',help='Use if Pymol drawing is desired')
+    arg_parser.add_argument('--batch',action='store_true',help='Batch mode, used in run_TR_geometry.sh')
     args=arg_parser.parse_args()
-    Repeats_geometry(args.filepath,args.chain,args.unit_def,args.ins,args.o,args.draw)
+    Repeats_geometry(args.filepath,args.chain,args.unit_def,args.ins,args.o,args.draw,args.batch)
