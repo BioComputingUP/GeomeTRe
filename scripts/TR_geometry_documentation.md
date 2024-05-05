@@ -2,13 +2,14 @@
 
 
 ## Command line syntax
-python TR_geometry.py input_path chain units_def -o output_path -ins insertions--draw
+python TR_geometry.py input_path chain units_def -o output_path -ins insertions --draw --batch
 - Input_path: path to .pdb file to analyze
 - Chain: chain to analyze
 - Units_def: insertion codes delimiting the units, written as s1-e1,s2-e2,...
 - -ins insertions: insertion codes delimiting insertions, written as the units
 - -o output_path: optional argument. If used, the output of the program will be saved as a csv file within the specified directory. Any directory in the path must already exist.
 - --draw: if used, the output will include a PyMOL drawing of the protein structure
+- --batch: used by run_TR_geometry.sh (print statistics on the parameters as a tsv line)
 
 Using the -h option displays this info.
 
@@ -29,8 +30,8 @@ EX: python TR_geometry.py Data\4cj9.pdb A 30-60,61-93,94-126,127-159,160-192,193
 ### Rotation
 
 The program first computes the rotation between units in the following way:
-First we take sliding windows of 6 units, projecting them on a plane with PCA, and fitting a circle on the resulting points. We then reverse the PCA transformation to get the center of rotation in the 3D space.
-Then for each pair of units, we find a center of rotation for that pair as the center of rotation that included that pair and gave the best fit in terms of RMSD.
+First we take sliding windows of 6 units, projecting them on a plane with PCA, and finding the rotation center as the center of the widest circular crown containining them all. We then reverse the PCA transformation to get the center of rotation in the 3D space.
+Then for each pair of units, we find a center of rotation for that pair as the center of rotation found by a window including that pair that corresponded to the largest crown.
 
 ### Twist, pitch and handedness
 
@@ -44,15 +45,11 @@ The twist axis is the vector connecting the two barycenters, orthogonalized w.r.
 
 
 
-Then for each pair of units, we rotate the reference axes of the second one to overlap those of the first one.
-We then apply this rotation to the second unit, to bring it within the reference frame of the first one.
+Then for each pair of units, we rotate them to bring their axes into correspondence to the standard axes (twist to (1,0,0), pitch to (0,1,0))
 
-We then represent each unit as its components found by PCA.
-Since sometimes the components may change in order between units, we match components by similarity, then make sure the verses are equal.
-We then find the rotation that aligns the units as the rotation that aligns the matched components of their PCAs.
+We then use TM-align to find the best rotation that overlaps the first unit on the second one.
 
-Then we decompose the rotation of the alignment w.r.t. the reference axes of the first unit to find the pitch, twist and handedness.
-We do this by taking a vector, applying the rotation to it, orthogonalizing these two vectors w.r.t. the reference axis and looking at the resulting angle.
+Then we decompose the rotation of the alignment w.r.t. the reference axes of the first unit to find the pitch, twist and handedness, using Euler angles. 
 
 ## Output
 
@@ -67,8 +64,11 @@ The table has the following columns:
 - Unit end: the end of the unit
 - Curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
 - Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
-- Handedness: computed as the handedness of the rotation, w.r.t. the twist axis.
+- Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis.
 - Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis.
+- Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
+- TM-score: the tm-score of the structural alignment
+- Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw means a bad performance on the algorithm for that unit pair.
 
 The pymol drawing contains the following objects:
 - In yellow, the line connecting the geometric centers of each unit to each other, and the lines connecting the rotation centers to each geometric center
