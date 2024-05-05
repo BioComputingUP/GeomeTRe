@@ -1,6 +1,11 @@
-#### TR_geometry.py
+### TR_geometry.py
 The base script, containing the algorithm
-#### run_TR_geometry.sh
+
+
+### TR_geometry_documentation.md
+A brief description of the algorithm contained in TR_geometry.py
+
+### run_TR_geometry.sh
 A bash script that uses GNU parallel to run TR_geometry on a batch of proteins. Command line usage is as follows:
 bash run_TR_geometry.sh input_file.tsv njobs output_file.tsv.
 
@@ -11,5 +16,5 @@ Where :
   
 The .cif files corresponding to the pdb ids will be downloaded to a temporary directory, that is deleted at the end
 
-#### repeatsdb.tsv
+### repeatsdb.tsv
 tsv file containining the proteins in the RepeatsDB database, in the format needed for run_TR_geometry.sh
