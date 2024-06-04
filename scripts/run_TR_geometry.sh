@@ -8,10 +8,11 @@ do_TR_geometry () {
     ins="$3"
     curl -s -o "$files_dir"/"$pdb".cif https://files.rcsb.org/download/"$pdb".cif 
     if [ "$ins" = 'NA' ]; then
-        python -W ignore ./TR_geometry.py "$files_dir"/"$pdb".cif "$chain" "$units" --batch
+        python3 -W ignore ./TR_geometry.py "$files_dir"/"$pdb".cif "$chain" "$units" --batch
     else
-        python -W ignore ./TR_geometry.py "$files_dir"/"$pdb".cif "$chain" "$units" -ins "$ins" --batch
+        python3 -W ignore ./TR_geometry.py "$files_dir"/"$pdb".cif "$chain" "$units" -ins "$ins" --batch
     fi
+     rm -f "$files_dir"/"$pdb".cif  # Delete the CIF file immediately after processing
 }
 
 export -f do_TR_geometry

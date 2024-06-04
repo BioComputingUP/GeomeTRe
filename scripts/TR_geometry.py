@@ -225,8 +225,15 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,r
 
 def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,batch=False):
     units_ids=create_list(units_ids)
-    parser=MMCIFParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
-    structure=parser.get_structure('structure',Path(filepath))
+    mmcif_parser=MMCIFParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
+    pdb_parser=PDBParser(QUIET=True) #call pdb parser
+    file_type = filepath[-3:]
+    if file_type == 'cif':
+        structure=mmcif_parser.get_structure('structure',Path(filepath)) 
+    elif file_type == 'pdb':
+        structure=pdb_parser.get_structure('structure',Path(filepath))
+
+    
     chain_s=structure[0][chain]
     if ins_ids:
         ins_ids=create_list(ins_ids)

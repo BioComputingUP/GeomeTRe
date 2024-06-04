@@ -13,8 +13,8 @@ python TR_geometry.py input_path chain units_def -o output_path -ins insertions 
 
 Using the -h option displays this info.
 
-EX: python TR_geometry.py Data\4cj9.pdb A 30-60,61-93,94-126,127-159,160-192,193-225, 226-258,259-291,292-324,325-357,358-390,391-423,424-456,457-489,490-522,523-555,
-556-588,589-621,622-654,655-687,688-720,721-753 -o Outputs --draw
+EX: python3 TR_geometry.py Data\4cj9.pdb A 30_60,61_93,94_126,127_159,160_192,193_225,226_258,259_291,292_324,325_357,358_390,391_423,424_456,457_489,490_522,523_555,
+556_588,589_621,622_654,655_687,688_720,721_753 -o Outputs --draw
 ## Required packages
 
 - Argparse and pathlib for command line processing 
@@ -43,8 +43,6 @@ The pitch axis is the vector connecting the geometric center to the center of ro
 
 The twist axis is the vector connecting the two barycenters, orthogonalized w.r.t. the two different pitch axes.
 
-
-
 Then for each pair of units, we rotate them to bring their axes into correspondence to the standard axes (twist to (1,0,0), pitch to (0,1,0))
 
 We then use TM-align to find the best rotation that overlaps the first unit on the second one.
@@ -54,7 +52,6 @@ Then we decompose the rotation of the alignment w.r.t. the reference axes of the
 ## Output
 
 There are two outputs: a table with the computed parameters, and a pymol drawing of the geometry of the molecule.
-
 In the table, the first row is all zeros, since the rows refer to the unit and the unit before it.
 There are also rows with mean and standard deviation of the parameters (ignoring the first row.)
 The table has the following columns:
