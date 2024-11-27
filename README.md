@@ -1,24 +1,20 @@
-### TR_geometry.py
-The base script, containing the algorithm
 
-
-### TR_geometry_documentation.md
-# TR_geometry.py documentation
+# GeomeTRe.py documentation
 
 
 ## Command line syntax
-python TR_geometry.py input_path chain units_def -o output_path -ins insertions --draw --batch
+python GeomeTRe.py input_path chain units_def -o output_path -ins insertions --draw --batch
 - Input_path: path to .pdb file to analyze
 - Chain: chain to analyze
 - Units_def: insertion codes delimiting the units, written as s1-e1,s2-e2,...
 - -ins insertions: insertion codes delimiting insertions, written as the units
 - -o output_path: optional argument. If used, the output of the program will be saved as a csv file within the specified directory. Any directory in the path must already exist.
 - --draw: if used, the output will include a PyMOL drawing of the protein structure
-- --batch: used by run_TR_geometry.sh (print statistics on the parameters as a tsv line)
+- --batch: used by run_GeomeTRe.sh (print statistics on the parameters as a tsv line)
 
 Using the -h option displays this info.
 
-EX: python3 TR_geometry.py Output/4cj9.pdb A 30_60,61_93,94_126,127_159,160_192,193_225,226_258,259_291,292_324,325_357,358_390,391_423,424_456,457_489,490_522,523_555,556_588,589_621,622_654,655_687,688_720,721_753 -o Outputs --draw
+EX: python3 GeomeTRe.py Output/4cj9.pdb A 30_60,61_93,94_126,127_159,160_192,193_225,226_258,259_291,292_324,325_357,358_390,391_423,424_456,457_489,490_522,523_555,556_588,589_621,622_654,655_687,688_720,721_753 -o Outputs --draw
 ## Required Dependencies
 This package requires the following dependencies to run:
 - Python 3.6 or higher
@@ -30,8 +26,7 @@ This package requires the following dependencies to run:
   - biopython
   - tmtools
 - **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to use the `--draw` option.
-# Install these using conda
-conda install -c conda-forge pymol-open-source
+    conda install -c conda-forge pymol-open-source
 
 ## What it does
 
@@ -81,7 +76,7 @@ The pymol drawing contains the following objects:
 - In blue, the pitch axis of each unit. Units that are at the edge of the 6 units window have two pitch axes (one for each rotation center)
 - In red, orange and white, the components found by PCA.
 
-### run_TR_geometry.sh
+### run_GeomeTRe.sh
 A bash script that uses GNU parallel to run GeomeTRe on a batch of proteins. Command line usage is as follows:
 bash run_GeomeTRe.sh input_file.tsv njobs output_file.tsv.
 
