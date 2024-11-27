@@ -1,0 +1,12 @@
+# Include the README and LICENSE files
+include README.md
+include LICENSE
+
+# Optional: Include specific directories or patterns
+recursive-include test *
+recursive-include input_data *
+
+# Exclude large or non-package directories
+exclude LSA_results/*
+exclude notebooks/*
+

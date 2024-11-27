@@ -1,0 +1,11 @@
+numpy
+pandas
+scipy
+scikit-learn
+biopython
+pymol-bundle
+tmtools
+scikit-image
+
+# Install these using conda
+# conda install -c conda-forge pymol-open-source
