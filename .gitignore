@@ -1,0 +1,20 @@
+# Build artifacts (exclude from Git and package)
+build/
+dist/
+*.egg-info/
+
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+
+# Temporary files
+*.log
+*.tmp
+
+# Environment files
+*.env
+*.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
