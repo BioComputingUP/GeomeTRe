@@ -49,17 +49,18 @@ def get_angle(v1,v2):
 def create_list(list_indexes):   #Used to process the unit_def argument
     list_indexes=list_indexes.split(',')
     list_indexes=list(dict.fromkeys(list_indexes))
-    L=[]
+    len_unit=[]
     for item in list_indexes:
         item=item.strip().split('_')
         item=(int(item[0]),int(item[1]))
-        if len(L)>0:
-            if item[0] > L[-1][1]:
-                L.append(item)
+        if len(len_unit)>0:
+            if item[0] > len_unit[-1][1]:
+                len_unit.append(item)
         else:
-            L.append(item)
+            len_unit.append(item)
+    #print(len_unit)
                 
-    return L
+    return len_unit
 
 def widest_circle(c,data):   # Widest circular crown that's within units
     nearest=np.NINF
@@ -83,16 +84,16 @@ def get_unit_rotation(coords,seqs,rotations):  # Align 2 units using CEalign, an
     return alignment
     
 def widest_circle_fit(units,centers,window=6):   # Alternative method for curvature
-    N=len(units)
+    num_units=len(units)
     index_list=[]
     centers_list=[]
     score_list=[]
-    for i in range(max(N-window+1,1)):
+    for i in range(max(num_units-window+1,1)):
         min_index=i
-        max_index=min(i+window,N)
+        max_index=min(i+window,num_units)
         data_to_fit=units[min_index:max_index]
         pca_centers=centers[min_index:max_index] #Cartesian coordinates
-        print(pca_centers) 
+        #print(pca_centers)
         
         pca=PCA(n_components=2)  # Find plane of rotation of units, and project them onto it
         pca.fit(pca_centers)
@@ -110,8 +111,8 @@ def widest_circle_fit(units,centers,window=6):   # Alternative method for curvat
         index_list.append([*range(min_index,max_index)])
         score_list.append(np.std([norm(center-geo_center) for geo_center in pca_centers]))
     
-    def_centers=np.empty((N-1,3))
-    best_score=np.full(N-1,np.inf)
+    def_centers=np.empty((num_units-1,3))
+    best_score=np.full(num_units-1,np.inf)
     for center,indexes,score in zip(centers_list,index_list,score_list):   #For each unit pair, select center corresponding to the widest crown
         act_indexes=indexes[:-1]
         score_to_confront=best_score[act_indexes]
@@ -124,9 +125,9 @@ def widest_circle_fit(units,centers,window=6):   # Alternative method for curvat
     return def_centers
 
 def build_ref_axes(geometric_centers,rot_centers):
-    N=len(geometric_centers)
+    num_centers=len(geometric_centers)
     pitch_axis=[]
-    for i in range(N-1):
+    for i in range(num_centers-1):
         vec_1=rot_centers[i]-geometric_centers[i]
         vec_1/=norm(vec_1)
         vec_2=rot_centers[i]-geometric_centers[i+1]
@@ -134,14 +135,14 @@ def build_ref_axes(geometric_centers,rot_centers):
         pitch_axis.append((vec_1,vec_2))
 
     twist_axis=[]
-    for i in range(N-1):
+    for i in range(num_centers-1):
         twist_vect=geometric_centers[i+1]-geometric_centers[i]
         vec_1=orthogonalize(twist_vect,pitch_axis[i][0])
         vec_2=orthogonalize(twist_vect,pitch_axis[i][1])
         twist_axis.append((vec_1,vec_2))
     
     rots=[]
-    for i in range(N-1):
+    for i in range(num_centers-1):
         try:
             rots.append((Rotation.from_matrix(np.array([twist_axis[i][0],pitch_axis[i][0],np.cross(twist_axis[i][0],pitch_axis[i][0])])),Rotation.from_matrix(np.array([twist_axis[i][1],pitch_axis[i][1],np.cross(twist_axis[i][1],pitch_axis[i][1])]))))
                         
@@ -149,19 +150,19 @@ def build_ref_axes(geometric_centers,rot_centers):
             rots.append(Rotation.from_matrix(np.eye(3)))
     return pitch_axis,twist_axis,rots
     
-def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector):
-    N=len(geometric_centers)
+def pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector):
+    num_centers=len(geometric_centers)
     pymol.finish_launching()
     cmd.load(filepath)
     cmd.hide('all')
-    for i in range(N):   #Place pseudoatoms to draw distances and angles
+    for i in range(num_centers):   #Place pseudoatoms to draw distances and angles
         cmd.pseudoatom('geo_centers',pos=tuple(geometric_centers[i]))
         #cmd.pseudoatom('ref_1',pos=tuple(geometric_centers[i]+6*unit_vector))
         #cmd.pseudoatom('ref_2',pos=tuple(geometric_centers[i]-6*unit_vector))
         #cmd.select('unit_1',selection='model ref_1 and name PS{}'.format(str(i+1)))
         #cmd.select('unit_2',selection='model ref_2 and name PS{}'.format(str(i+1)))
         #cmd.distance('unit_vector',selection1='unit_1',selection2='unit_2')
-        if i < N-1:
+        if i < num_centers-1:
             unit_vector=units_rots[i] @ (rots[i][0].apply(unit_vector))
             unit_vector=rots[i][1].apply(unit_vector,inverse=True)
 
@@ -170,7 +171,7 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,r
         #cmd.pseudoatom('rot_centers',pos=tuple(rot_centers[i]))
 
 
-    for i in range(N-1):  #Draw rotation angles and protein geometry
+    for i in range(num_centers-1):  #Draw rotation angles and protein geometry
         cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[i]+9*twist_axis[i][0]))
         cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[i]+9*pitch_axis[i][0]))
         cmd.pseudoatom('yaw_ref',pos=tuple(geometric_centers[i]+9*np.cross(pitch_axis[i][0],twist_axis[i][0])))
@@ -189,12 +190,12 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,r
     cmd.pseudoatom('twist_ref',pos=tuple(geometric_centers[-1]+6*twist_axis[-1][1]))
     cmd.pseudoatom('pitch_ref',pos=tuple(geometric_centers[-1]+6*pitch_axis[-1][1]))
     cmd.pseudoatom('yaw_ref',pos=tuple(geometric_centers[-1]+6*np.cross(pitch_axis[-1][1],twist_axis[-1][1])))
-    cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(N)))
+    cmd.select('point1',selection='model geo_centers and name PS{}'.format(str(num_centers)))
     #cmd.select('point2',selection='model geo_centers and name PS{}'.format(str(i+2)))
     #cmd.select('rot_center',selection='model rot_centers and name PS{}'.format(str(i+1)))
-    cmd.select('twist_point',selection='model twist_ref and name PS{}'.format(str(N)))
-    cmd.select('pitch_point',selection='model pitch_ref and name PS{}'.format(str(N)))
-    cmd.select('yaw_point',selection='model yaw_ref and name PS{}'.format(str(N)))
+    cmd.select('twist_point',selection='model twist_ref and name PS{}'.format(str(num_centers)))
+    cmd.select('pitch_point',selection='model pitch_ref and name PS{}'.format(str(num_centers)))
+    cmd.select('yaw_point',selection='model yaw_ref and name PS{}'.format(str(num_centers)))
     #cmd.angle('rot_angle',selection1='point1',selection2='rot_center',selection3='point2')
     #cmd.distance('superaxis',selection1='point1',selection2='point2')
     cmd.distance('twist_axis',selection1='point1',selection2='twist_point')
@@ -223,8 +224,7 @@ def Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,r
     
     
 #--------------------------------------------------------------------------------------------------------------------------------
-
-def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,batch=False):
+def repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,batch=False):
     units_ids=create_list(units_ids)
     mmcif_parser=MMCIFParser(QUIET=True)   #Parse .pdb file, define units, calculate center of each unit
     pdb_parser=PDBParser(QUIET=True) #call pdb parser
@@ -286,16 +286,16 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,ba
         units_coords.append(ca_coords)
         
     geometric_centers=[sum(coords)/len(coords) for coords in units_coords]  #Define geometric center for each unit
-    N=len(geometric_centers)
+    num_centers=len(geometric_centers)
     rot_centers=widest_circle_fit(units_coords,geometric_centers)
-    rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(N-1)]
+    rot_angles=[get_angle(geometric_centers[i]-rot_centers[i],geometric_centers[i+1]-rot_centers[i]) for i in range(num_centers-1)]
 
     pitch_axis,twist_axis,rots=build_ref_axes(geometric_centers,rot_centers)
 
 
     units_rots=[]
     tmscores=[]
-    for i in range(N-1):
+    for i in range(num_centers-1):
         alignment=get_unit_rotation(units_coords[i:i+2],units_seqs[i:i+2],rots[i])
         units_rots.append(alignment.u)
         tmscores.append(alignment.tm_norm_chain1)
@@ -305,7 +305,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,ba
     twist_handednesslist=[]
     pitch_handednesslist=[]
     yawlist=[]
-    for i in range(N-1):   # Decompose rotation into pitch, twist and yaw
+    for i in range(num_centers-1):   # Decompose rotation into pitch, twist and yaw
         rotation=units_rots[i]
         
         ref_twist=rotation @ pitch_axis[i][0]
@@ -342,7 +342,7 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,ba
     tmscores.insert(0,0)
     yawlist.insert(0,0)
 
-    N=len(rot_angles)-2
+    num_centers=len(rot_angles)-2
     starts=[unit[0] for unit in units_ids]
     starts.append('mean')
     starts.append('std deviation')
@@ -350,8 +350,8 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,ba
     ends.append('-')
     ends.append('-')
     pdb=filepath.split('/')[-1][0:4]
-    pdbs=[pdb for i in range(N+2)]
-    chains=[chain for i in range(N+2)]
+    pdbs=[pdb for i in range(num_centers+2)]
+    chains=[chain for i in range(num_centers+2)]
 
     d={'pdb_id':pdbs,'chain':chains,'unit start':starts,'unit end':ends,'curvature':rot_angles,'twist':twistlist,'twist_hand':twist_handednesslist,'pitch':pitchlist,'pitch_hand':pitch_handednesslist,'TM-score':tmscores,'yaw':yawlist}
     df=pd.DataFrame(data=d)
@@ -360,16 +360,16 @@ def Repeats_geometry(filepath,chain,units_ids,ins_ids='',o_path='',draw=False,ba
             df.to_csv(Path(o_path+'\out_'+pdb+'.csv'))
         else:
             with pd.option_context('display.max_rows', None,'display.max_columns', None):
-                print(df)
+                print("--")
     else:
         out_list=[pdb,chain,units_ids[0][0],units_ids[-1][1]]+stats
-        print('\t'.join(str(x) for x in out_list))
+        #print('\t'.join(str(x) for x in out_list))
             
     if draw:
         draw_pca=PCA()
         draw_pca.fit(units_coords[0])
         unit_vector=draw_pca.components_[0]
-        Pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector)
+        pymol_drawing(filepath,geometric_centers,rot_centers,twist_axis,pitch_axis,rots,units_rots,unit_vector)
         
     return df,stats
             
@@ -387,7 +387,7 @@ def main():
     args = arg_parser.parse_args()
 
     # Call Repeats_geometry with parsed arguments
-    Repeats_geometry(args.filepath, args.chain, args.unit_def, args.ins, args.o, args.draw, args.batch)
+    repeats_geometry(args.filepath, args.chain, args.unit_def, args.ins, args.o, args.draw, args.batch)
 
 
 if __name__ == '__main__':
