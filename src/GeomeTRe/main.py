@@ -1,7 +1,7 @@
 import argparse
 import logging
-from repeats_geometry import repeats_geometry
-from batch_processing import batch_repeats_geometry
+from .repeats_geometry import repeats_geometry
+from .batch_processing import batch_repeats_geometry
 import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 

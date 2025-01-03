@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import os
 import pandas as pd
-from repeats_geometry import repeats_geometry
+from .repeats_geometry import repeats_geometry
 import requests
 import gzip
 import shutil

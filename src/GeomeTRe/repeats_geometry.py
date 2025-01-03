@@ -6,7 +6,7 @@ import logging
 from Bio.PDB import PDBParser, MMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
-from geometry_parameters import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+from .geometry_parameters import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
