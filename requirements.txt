@@ -6,6 +6,7 @@ biopython
 pymol-bundle
 tmtools
 scikit-image
+requests
 
 # Install these using conda
 # conda install -c conda-forge pymol-open-source
