@@ -18,3 +18,6 @@ __pycache__/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
+# Ignore notebook and LSA_results directories
+notebook/
+LSA_results/
