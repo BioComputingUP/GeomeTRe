@@ -1,35 +1,39 @@
 from pathlib import Path
-from sklearn.decomposition import PCA
 import pandas as pd
 import numpy as np
 import logging
-from Bio.PDB import PDBParser, MMCIFParser, Polypeptide
+from Bio.PDB import PDBParser, FastMMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
-from .geometry_parameters import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+
+# import warnings
+# from Bio.PDB.PDBExceptions import PDBConstructionWarning
+
+# Suppress PDBConstructionWarnings
+
+from geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
 
-def repeats_geometry(filepath, chain, units_ids, ins_ids='', o_path='', draw=False, batch=False):
+def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
     """Calculate geometrical parameters for repeats."""
-    logging.info(f"Processing file: {filepath}, chain: {chain}, batch mode: {batch}")
+    logging.info(f"Processing file: {filepath}, chain: {chain}")
 
     units_ids = create_list(units_ids)
-    file_type = Path(filepath).suffix.lower()
+    file_type = Path(filepath.).suffix.lower()
 
-    try:
-        if file_type == '.cif':
-            parser = MMCIFParser(QUIET=True)
-            structure = parser.get_structure('structure', Path(filepath))
-        elif file_type == '.pdb':
-            parser = PDBParser(QUIET=True)
-            structure = parser.get_structure('structure', Path(filepath))
-        else:
-            raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
-    except Exception as e:
-        logging.error(f"Failed to parse file {filepath}: {e}")
-        raise RuntimeError(f"Failed to parse file {filepath}: {e}")
+
+    if file_type == '.cif':
+        parser = FastMMCIFParser(QUIET=True)
+        structure = parser.get_structure('structure', Path(filepath))
+    elif file_type == '.pdb':
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure('structure', Path(filepath))
+    else:
+        raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
+
 
     # Ensure structure is loaded
     if structure is None:
@@ -37,11 +41,11 @@ def repeats_geometry(filepath, chain, units_ids, ins_ids='', o_path='', draw=Fal
         return None, None
 
     chain_s = structure[0][chain]
+
     # Handle insertions
+    ins_ids = []
     if ins_ids:
         ins_ids = create_list(ins_ids)
-    else:
-        ins_ids = []
 
     if len(ins_ids) > 0:  # If we have insertions, we make sure to remove them from the structure
         units = []
@@ -168,35 +172,27 @@ def repeats_geometry(filepath, chain, units_ids, ins_ids='', o_path='', draw=Fal
     df = pd.DataFrame(data=d)
 
     # Save or display output
-    if o_path:
-        try:
-            output_path = Path(o_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure the parent directory exists
-            pd.DataFrame([stats]).to_csv(output_path, index=False)
-            logging.info(f"Results saved to {output_path}")
+    output_path = Path(o_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure the parent directory exists
+    pd.DataFrame([stats]).to_csv(output_path, index=False)
+    logging.info(f"Results saved to {output_path}")
 
-            if not df.empty:
-                df.to_csv(output_path, index=False)
-                #print(f"Output successfully saved to {output_path}")
-            else:
-                pass
-
-        except Exception as e:
-            pass
+    if not df.empty:
+        df.to_csv(output_path, index=False, float_format='%.4f')
+        #print(f"Output successfully saved to {output_path}")
     else:
-        print("No output path provided; skipping save.")
+        ## TODO log something
+        pass
+
 
     # Drawing with PyMOL
-    if draw and not batch:
+    if draw:
+        # TODO try to remove the following try, maybe it will be necessary to test the dataframe is not empty?
         try:
-            # Perform PCA on the first unit to find a principal axis for visualization
-            draw_pca = PCA()
-            draw_pca.fit(units_coords[0])
-            unit_vector = draw_pca.components_[0]
-
             # Call the PyMOL drawing function
             pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots,
-                          unit_vector)
+                          units_coords)
+
             logger.info(f"PyMOL visualization saved.")
         except Exception as e:
             logging.error(f"Error during geometry calculations for file {filepath}, chain: {chain}: {e}")

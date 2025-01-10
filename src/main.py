@@ -1,31 +1,16 @@
-import argparse
+from argparse import ArgumentParser, FileType
 import logging
-from .repeats_geometry import repeats_geometry
-from .batch_processing import batch_repeats_geometry
-import warnings
-from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
-# Suppress PDBConstructionWarnings
-warnings.filterwarnings("ignore", category=PDBConstructionWarning)
 
-# Set up logging to save logs in a file
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("process.log",mode="a"),
-    ]
-)
-logger = logging.getLogger(__name__)
-logger.info("Batch process is started.")
+
 
 def main():
-    arg_parser = argparse.ArgumentParser(description="Calculate repeat protein geometrical properties.")
+    arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
     subparsers = arg_parser.add_subparsers(dest='mode', required=True)
 
     # Single file mode
     single_parser = subparsers.add_parser('single', help='Process a single PDB/CIF file')
-    single_parser.add_argument('filepath', help='Path to input PDB or CIF file')
+    single_parser.add_argument('filepath', type=FileType("rt", encoding="UTF-8"), help='Path to input PDB or CIF file')
     single_parser.add_argument('chain', help='Chain ID')
     single_parser.add_argument('unit_def', help='Unit limits (e.g., 10_50,51_100)')
     single_parser.add_argument('-ins', default='', help='Insertions (optional)')
@@ -41,24 +26,42 @@ def main():
     batch_parser.add_argument('--threads', type=int, default=4, help='Number of threads for parallel processing')
     batch_parser.add_argument('--pdb_dir', type=str, help='Directory containing local PDB files (supports .gz files).')
 
+    arg_parser.add_argument('-l', help='Log file')
+
     args = arg_parser.parse_args()
+
+    # Set up logging to save logs in a file
+    # TODO pass the file handler from the arg
+    logging.basicConfig(
+        level=logging.WARNING,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("process.log", mode="w"),
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    logger.info("Batch process is started.")
 
     logging.info(f"Arguments parsed: {args}")
 
     if args.mode == 'single':
         logging.info(f"Running in single mode with arguments: {args.filepath}, {args.chain}, {args.unit_def}, {args.ins}, {args.o}, {args.draw}")
-        repeats_geometry(
+        from geometre.single_processing import geometre
+
+        geometre(
             filepath=args.filepath,
             chain=args.chain,
             units_ids=args.unit_def,
-            ins_ids=args.ins,
             o_path=args.o,
-            draw=args.draw,
-            batch=False
+            ins_ids=args.ins,
+            draw=args.draw
         )
         logging.info(f"Single mode results saved to: {args.o}")
+
     elif args.mode == 'batch':
         logging.info(f"Running in batch mode with arguments: {args.batch}, {args.output}, {args.format}, {args.threads}, {args.pdb_dir}")
+        from geometre.batch_processing import batch_repeats_geometry
+
         batch_repeats_geometry(
             tsv_path=args.batch,
             output_path=args.output,
