@@ -21,3 +21,21 @@ __pycache__/
 # Ignore notebook and LSA_results directories
 notebook/
 LSA_results/
+=======
+__pycache__/
+*.py[cod]
+
+*.log
+*.tmp
+
+*.env
+*.venv/
+
+.ipynb_checkpoints/
+
+
+
+pip-log.txt
+pip-delete-this-directory.txt
+
+>>>>>>> 3a90372 (update on NumPy library)

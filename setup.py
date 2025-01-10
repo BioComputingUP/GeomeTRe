@@ -25,7 +25,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "geometre=GeomeTRe.main:main",
+            "geometre=geometre.main:main",
         ]
     },
     classifiers=[
