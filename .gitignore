@@ -1,27 +1,7 @@
-# Build artifacts (exclude from Git and package)
 build/
 dist/
 *.egg-info/
 
-# Bytecode and cache
-__pycache__/
-*.py[cod]
-
-# Temporary files
-*.log
-*.tmp
-
-# Environment files
-*.env
-*.venv/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# Ignore notebook and LSA_results directories
-notebook/
-LSA_results/
-=======
 __pycache__/
 *.py[cod]
 
@@ -38,4 +18,3 @@ __pycache__/
 pip-log.txt
 pip-delete-this-directory.txt
 
->>>>>>> 3a90372 (update on NumPy library)

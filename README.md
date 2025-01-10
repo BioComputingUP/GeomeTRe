@@ -1,9 +1,9 @@
 # GeomeTRe documentation
 
-GeomeTRe is a python package developped to calculated geometrical parameters of repeat proteins.
+GeomeTRe is a python package developed to calculated geometrical parameters of repeat proteins.
 
 ## Command line syntax for single mode
-python3 main.py single input_path chain units_def -ins insertion -o output_path --draw
+geometre single input_path chain units_def -ins insertion -o output_path --draw
 
 - single: single file mode
 - input_path: path to .pdb or .cif file to analyze
@@ -15,13 +15,13 @@ python3 main.py single input_path chain units_def -ins insertion -o output_path 
 
 Use -h option to display help information.
 
-Example:  python3 main.py single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw
+Example: geometre single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw
 
 process.log file is generated to help track the operations.
 
 
 ## Command line syntax for batch mode
-python3 main.py batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures
+geometre batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures
 
 - batch: single mode
 - input_file.tsv is a tab separated file with 3 columns: the pdb id+chain (ex:2xqhA), units repeat units' star and end positions, written as s1_e1,s2_e2, etc, and insertion (NA if no insertions)
@@ -30,7 +30,7 @@ python3 main.py batch --batch input_path/input_file.tsv --output output_path/out
 - threads: number of jobs to run in parallel
 - pdb_dir: directory of pdb structures downloaded
 
-Example: python3 main.py batch --batch test_batch.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir download_pdb/pdb_str/
+Example: geometre batch --batch test_batch.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir download_pdb/pdb_str/
 
 process.log file is generated to help track the operations.
 
