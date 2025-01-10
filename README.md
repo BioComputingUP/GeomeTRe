@@ -3,7 +3,7 @@
 GeomeTRe is a python package developed to calculated geometrical parameters of repeat proteins.
 
 ## Command line syntax for single mode
-geometre single input_path chain units_def -ins insertion -o output_path --draw
+`geometre single input_path chain units_def -ins insertion -o output_path --draw`
 
 - single: single file mode
 - input_path: path to .pdb or .cif file to analyze
@@ -15,13 +15,15 @@ geometre single input_path chain units_def -ins insertion -o output_path --draw
 
 Use -h option to display help information.
 
-Example: geometre single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw
+Example:
+
+`geometre single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw`
 
 process.log file is generated to help track the operations.
 
 
 ## Command line syntax for batch mode
-geometre batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures
+`geometre batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures`
 
 - batch: single mode
 - input_file.tsv is a tab separated file with 3 columns: the pdb id+chain (ex:2xqhA), units repeat units' star and end positions, written as s1_e1,s2_e2, etc, and insertion (NA if no insertions)
@@ -30,7 +32,9 @@ geometre batch --batch input_path/input_file.tsv --output output_path/output.fil
 - threads: number of jobs to run in parallel
 - pdb_dir: directory of pdb structures downloaded
 
-Example: geometre batch --batch test_batch.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir download_pdb/pdb_str/
+Example: 
+
+`geometre batch --batch test_batch.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir download_pdb/pdb_str/`
 
 process.log file is generated to help track the operations.
 
@@ -48,6 +52,16 @@ This package requires the following dependencies to run:
   - requests
 - **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to use the `--draw` option.
     conda install -c conda-forge pymol-open-source
+    
+## Installation
+To install the package directly from GitHub:
+`pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
+
+Check the installation:
+`pip list | grep GeomeTRe`  or `geometre --help`
+
+Uninstall package:
+`pip uninstall geometre`
 
 ## CALCULATION OF PARAMETERS
 
@@ -64,28 +78,28 @@ The pitch axis is the vector connecting the geometric center to the center of ro
 ## Outputs
 
  - single mode has two outputs: a table with the computed parameters, and a pymol drawing of the geometry of the molecule.
- 
+
  	csv table content :
-	- pdb id: the PDB id of the molecule
-	- chain: chain of PDB structure
-	- unit_start: start position of repeat unit
-	- unit_end: end position of repeat unit
-	- Curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
-        - Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
-        - Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis
-        - Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
-        - Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
-        - TM-score: the tm-score of the structural alignment
-        - Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
-          means a bad performance on the algorithm for that unit pair.
+ 	- pdb id: the PDB id of the molecule
+ 	- chain: chain of PDB structure
+ 	- unit_start: start position of repeat unit
+ 	- unit_end: end position of repeat unit
+ 	- Curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
+ 	    - Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
+ 	    - Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis
+ 	    - Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
+ 	    - Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
+ 	    - TM-score: the tm-score of the structural alignment
+ 	    - Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
+ 	      means a bad performance on the algorithm for that unit pair.
  Additionally, last 2 rows are showing mean and standard deviations of each parameter. The first row is all zeros, since the rows refer to the unit and the unit before it.
 
 	pymol drawing contains the following objects:
-        - In yellow, the line connecting the geometric centers of each unit to each other, and the lines connecting the rotation centers to each geometric center
-        - In green, the twist axis of each unit
-        - In blue, the pitch axis of each unit. Units that are at the edge of the 6 units window have two pitch axes (one for each rotation center)
-        - In red, orange and white, the components found by PCA.
-        
+	    - In yellow, the line connecting the geometric centers of each unit to each other, and the lines connecting the rotation centers to each geometric center
+	    - In green, the twist axis of each unit
+	    - In blue, the pitch axis of each unit. Units that are at the edge of the 6 units window have two pitch axes (one for each rotation center)
+	    - In red, orange and white, the components found by PCA.
+
  - batch mode output:
  	- pdb id: the PDB id of the molecule
 	- chain: chain of PDB structure
@@ -103,7 +117,7 @@ The pitch axis is the vector connecting the geometric center to the center of ro
 	- tmscores_std: standard deviation of tmtool score
 	- yaw_mean: mean of yaw
 	- yaw_std: standard deviation of yaw
- 
+
 
 ### input_repeatsdb_v4_filtered.tsv
 tsv file containining the proteins in the RepeatsDB database (version 4) for batch mode calculations.
