@@ -11,7 +11,7 @@ from scipy.spatial.transform import Rotation
 
 # Suppress PDBConstructionWarnings
 
-from geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+from .geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
 
 
 # Use the shared logger
@@ -22,7 +22,7 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
     logging.info(f"Processing file: {filepath}, chain: {chain}")
 
     units_ids = create_list(units_ids)
-    file_type = Path(filepath.).suffix.lower()
+    file_type = Path(filepath).suffix.lower()
 
 
     if file_type == '.cif':

@@ -1,9 +1,7 @@
 # GeomeTRe documentation
-
 GeomeTRe is a python package developed to calculated geometrical parameters of repeat proteins.
 
 ## Installation
-
 The software can be installed with pip or used without installing it a library or as a command line tool.
 
 #### Command line tool
@@ -11,9 +9,14 @@ The software can be installed with pip or used without installing it a library o
 export PYTHONPATH="${PYTHONPATH}:/home/damiano/Projects/GeomeTRe/src/geometre"
 
 #### PIP installation
+To install the package directly from GitHub:
+`pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
 
-...
+Check the installation:
+`pip list | grep GeomeTRe`  or `geometre --help`
 
+Uninstall package:
+`pip uninstall geometre`
 
 ## Command line syntax for single mode
 `geometre single input_path chain units_def -ins insertion -o output_path --draw`
@@ -65,16 +68,6 @@ This package requires the following dependencies to run:
   - requests
 - **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to use the `--draw` option.
     conda install -c conda-forge pymol-open-source
-    
-## Installation
-To install the package directly from GitHub:
-`pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
-
-Check the installation:
-`pip list | grep GeomeTRe`  or `geometre --help`
-
-Uninstall package:
-`pip uninstall geometre`
 
 ## CALCULATION OF PARAMETERS
 

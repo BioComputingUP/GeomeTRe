@@ -1,7 +1,7 @@
-from .geometre import repeats_geometry
+from .single_processing import geometre
 from .batch_processing import batch_repeats_geometry
-from src.main import main
+from .main import main
 
 __version__ = "0.1.0"
-__all__ = ["geometry_parameters", "geometre.py", "batch_repeats_geometry", "main"]
+__all__ = ["geometry", "geometre", "batch_repeats_geometry", "main"]
 

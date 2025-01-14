@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import os
 import pandas as pd
-from single_processing import geometre
+from .single_processing import geometre
 import requests
 import gzip
 import shutil
