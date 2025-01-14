@@ -5,8 +5,7 @@ from scipy.spatial.transform import Rotation
 from sklearn.decomposition import PCA
 from skimage.measure import CircleModel
 from scipy.optimize import minimize
-import pymol
-from pymol import cmd
+
 import tmtools
 
 logger = logging.getLogger(__name__)
@@ -184,9 +183,21 @@ def get_unit_rotation(coords, seqs, rotations):
     logger.debug("Alignment completed.")
     return alignment
 
-def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, unit_vector):
+def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords):
+
+    import pymol
+    from pymol import cmd
+
+    from sklearn.decomposition import PCA
+
     """Draw geometrical properties using PyMOL."""
     logger.info(f"Drawing geometrical properties for file: {filepath}.")
+
+    # Perform PCA on the first unit to find a principal axis for visualization
+    draw_pca = PCA()
+    draw_pca.fit(units_coords[0])
+    unit_vector = draw_pca.components_[0]
+
     num_centers = len(geometric_centers)
     pymol.finish_launching()
     cmd.load(filepath)

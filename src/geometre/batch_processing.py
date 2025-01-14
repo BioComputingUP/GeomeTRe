@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import os
 import pandas as pd
-from .repeats_geometry import repeats_geometry
+from single_processing import geometre
 import requests
 import gzip
 import shutil
@@ -15,6 +15,9 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
     Retrieve a structure file from a local directory if available, otherwise download it.
     Handle both uncompressed and .gz files.
     """
+
+
+
     try:
         if pdb_dir:
             # Check for both uncompressed and .gz files in the local directory
@@ -44,6 +47,7 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
                 f.write(response.content)
             logger.info(f"Downloaded {pdb_id}.{file_format}")
         return file_path
+
     except Exception as e:
         logger.error(f"Failed to retrieve structure file for {pdb_id}: {e}")
         raise
@@ -63,14 +67,13 @@ def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
         structure_file = get_structure_file(pdb_id, temp_dir, file_format, pdb_dir)
 
         # Calculate repeats geometry
-        repeats_geometry(
+        geometre(
             filepath=structure_file,
             chain=chain,
             units_ids=units,
-            ins_ids=insertions,
             o_path=output_file,
-            draw=False,
-            batch=True
+            ins_ids=insertions,
+            draw=False
         )
 
         # Verify output file
@@ -82,43 +85,6 @@ def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
         logger.error(f"Error processing {row['pdb_chain']}: {e}")
 
 
-def batch_repeats_geometry(tsv_path, output_path, num_threads=4, file_format="cif", pdb_dir=None):
-    """
-    Batch processes repeats geometry in parallel and modifies the output columns.
-    """
-    try:
-        data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_chain": str, "units": str, "insertion": str})
-        temp_files = []
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                futures = []
-                for idx, row in data.iterrows():
-                    temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
-                    temp_files.append(temp_file)
-                    futures.append(
-                        executor.submit(
-                            process_entry, row, temp_dir, temp_file, file_format, pdb_dir
-                        )
-                    )
-
-                for future in futures:
-                    try:
-                        future.result()
-                    except Exception as e:
-                        logger.error(f"Thread failed: {e}")
-
-            logger.info(f"Temporary files created: {temp_files}")
-
-            merged_file = merge_results(temp_files, output_path)
-
-            if merged_file:
-                logger.info(f"Batch processing completed. Results saved to: {merged_file}")
-                modify_batch_columns(merged_file, output_path)
-            else:
-                logger.error("No merged file generated.")
-    except Exception as e:
-        logger.error(f"Error in batch processing: {e}")
 
 
 def merge_results(temp_files, output_path):
@@ -198,3 +164,43 @@ def modify_batch_columns(input_file, output_file):
 
     except Exception as e:
         print(f"Error modifying batch output columns: {e}")
+
+
+
+def batch_repeats_geometry(tsv_path, output_path, num_threads=4, file_format="cif", pdb_dir=None):
+    """
+    Batch processes repeats geometry in parallel and modifies the output columns.
+    """
+    try:
+        data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_chain": str, "units": str, "insertion": str})
+        temp_files = []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                futures = []
+                for idx, row in data.iterrows():
+                    temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
+                    temp_files.append(temp_file)
+                    futures.append(
+                        executor.submit(
+                            process_entry, row, temp_dir, temp_file, file_format, pdb_dir
+                        )
+                    )
+
+                for future in futures:
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.error(f"Thread failed: {e}")
+
+            logger.info(f"Temporary files created: {temp_files}")
+
+            merged_file = merge_results(temp_files, output_path)
+
+            if merged_file:
+                logger.info(f"Batch processing completed. Results saved to: {merged_file}")
+                modify_batch_columns(merged_file, output_path)
+            else:
+                logger.error("No merged file generated.")
+    except Exception as e:
+        logger.error(f"Error in batch processing: {e}")

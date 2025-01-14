@@ -2,6 +2,19 @@
 
 GeomeTRe is a python package developed to calculated geometrical parameters of repeat proteins.
 
+## Installation
+
+The software can be installed with pip or used without installing it a library or as a command line tool.
+
+#### Command line tool
+
+export PYTHONPATH="${PYTHONPATH}:/home/damiano/Projects/GeomeTRe/src/geometre"
+
+#### PIP installation
+
+...
+
+
 ## Command line syntax for single mode
 `geometre single input_path chain units_def -ins insertion -o output_path --draw`
 
