@@ -187,7 +187,6 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
 
     import pymol
     from pymol import cmd
-
     from sklearn.decomposition import PCA
 
     """Draw geometrical properties using PyMOL."""

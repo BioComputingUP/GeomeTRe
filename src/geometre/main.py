@@ -1,9 +1,6 @@
 from argparse import ArgumentParser, FileType
 import logging
 
-
-
-
 def main():
     arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
     subparsers = arg_parser.add_subparsers(dest='mode', required=True)
