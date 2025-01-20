@@ -10,9 +10,7 @@ from scipy.spatial.transform import Rotation
 # from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
 # Suppress PDBConstructionWarnings
-
 from .geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
-
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
@@ -23,7 +21,6 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
 
     units_ids = create_list(units_ids)
     file_type = Path(filepath).suffix.lower()
-
 
     if file_type == '.cif':
         parser = FastMMCIFParser(QUIET=True)
@@ -47,7 +44,8 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
     if ins_ids:
         ins_ids = create_list(ins_ids)
 
-    if len(ins_ids) > 0:  # If we have insertions, we make sure to remove them from the structure
+    # If insertions are present, we make sure to remove them from the structure
+    if len(ins_ids) > 0:
         units = []
         to_remove = []
         for limits in units_ids:
@@ -179,23 +177,20 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
 
     if not df.empty:
         df.to_csv(output_path, index=False, float_format='%.4f')
-        #print(f"Output successfully saved to {output_path}")
+        logging.info(f"Output successfully saved to {output_path}")
     else:
-        ## TODO log something
-        pass
-
+        logging.warning(f" The DataFrame is empty and no data to save. No file was created at {output_path}.")
 
     # Drawing with PyMOL
     if draw:
-        # TODO try to remove the following try, maybe it will be necessary to test the dataframe is not empty?
-        try:
+        if not df.empty:
             # Call the PyMOL drawing function
             pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots,
                           units_coords)
 
             logger.info(f"PyMOL visualization saved.")
-        except Exception as e:
-            logging.error(f"Error during geometry calculations for file {filepath}, chain: {chain}: {e}")
+        else:
+            logging.error(f"Missing required inputs for PYMOL visualization for file {filepath}, chain: {chain}: {e}")
 
     return df, stats
 

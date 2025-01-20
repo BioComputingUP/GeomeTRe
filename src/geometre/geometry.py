@@ -73,7 +73,7 @@ def widest_circle(c, data):
 
 
 def widest_circle_fit(units, centers, window=6):
-    """Alternative method for curvature."""
+    """Calculate curvature of repeat units"""
     logger.debug("Starting widest circle fit.")
     num_units = len(units)
     index_list = []
@@ -86,7 +86,8 @@ def widest_circle_fit(units, centers, window=6):
         data_to_fit = units[min_index:max_index]
         pca_centers = centers[min_index:max_index]
 
-        pca = PCA(n_components=2)  # Find plane of rotation of units, and project them onto it
+        # Find plane of rotation of units, and project them onto it
+        pca = PCA(n_components=2)
         pca.fit(pca_centers)
         pca_centers = pca.transform(pca_centers)
 
@@ -184,7 +185,7 @@ def get_unit_rotation(coords, seqs, rotations):
     return alignment
 
 def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords):
-
+    """Local imports are used to avoid unnecessary dependencies when this function is not called in batch mode."""
     import pymol
     from pymol import cmd
     from sklearn.decomposition import PCA

@@ -25,23 +25,20 @@ def main():
                                help='Choose file format for downloading (default: cif)')
     batch_parser.add_argument('--threads', type=int, default=4, help='Number of threads for parallel processing')
     batch_parser.add_argument('--pdb_dir', type=str, help='Directory containing local PDB files (supports .gz files).')
-
     arg_parser.add_argument('-l', help='Log file')
 
     args = arg_parser.parse_args()
-
     # Set up logging to save logs in a file
-    # TODO pass the file handler from the arg
+    log_file = args.l
     logging.basicConfig(
         level=logging.WARNING,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler("process.log", mode="w"),
+            logging.FileHandler(log_file, mode="w"),
         ]
     )
     logger = logging.getLogger(__name__)
     logger.info("Batch process is started.")
-
     logging.info(f"Arguments parsed: {args}")
 
     if args.mode == 'single':

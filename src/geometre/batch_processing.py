@@ -15,9 +15,6 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
     Retrieve a structure file from a local directory if available, otherwise download it.
     Handle both uncompressed and .gz files.
     """
-
-
-
     try:
         if pdb_dir:
             # Check for both uncompressed and .gz files in the local directory
@@ -115,9 +112,7 @@ def merge_results(temp_files, output_path):
 
 def modify_batch_columns(input_file, output_file):
     """
-    Modify the batch mode output by merging 'mean' and 'std deviation' rows into one line per pdb_id and chain.
-    Remove 'start' and 'end' columns from the final output.
-    Ensure numerical values are rounded to 6 decimal places.
+    Modify the batch mode output by merging 'mean' and 'std deviation' rows into one line per pdb_id and chain??.
     """
     try:
         # Read the input file
@@ -169,7 +164,7 @@ def modify_batch_columns(input_file, output_file):
 
 def batch_repeats_geometry(tsv_path, output_path, num_threads=4, file_format="cif", pdb_dir=None):
     """
-    Batch processes repeats geometry in parallel and modifies the output columns.
+    Batch processes single_processing in parallel and modifies the output columns.
     """
     try:
         data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_chain": str, "units": str, "insertion": str})
