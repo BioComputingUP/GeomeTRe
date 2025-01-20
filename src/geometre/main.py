@@ -1,16 +1,15 @@
 from argparse import ArgumentParser, FileType
 import logging
 
-
-
-
 def main():
     arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
+    #arg_parser.add_argument('-l', help='Log file path (default: process.log)', default='process.log')
     subparsers = arg_parser.add_subparsers(dest='mode', required=True)
 
     # Single file mode
     single_parser = subparsers.add_parser('single', help='Process a single PDB/CIF file')
-    single_parser.add_argument('filepath', type=FileType("rt", encoding="UTF-8"), help='Path to input PDB or CIF file')
+    #single_parser.add_argument('filepath', type=FileType("rt", encoding="UTF-8"), help='Path to input PDB or CIF file')
+    single_parser.add_argument('filepath', type=str, help='Path to input PDB or CIF file')
     single_parser.add_argument('chain', help='Chain ID')
     single_parser.add_argument('unit_def', help='Unit limits (e.g., 10_50,51_100)')
     single_parser.add_argument('-ins', default='', help='Insertions (optional)')
@@ -25,9 +24,11 @@ def main():
                                help='Choose file format for downloading (default: cif)')
     batch_parser.add_argument('--threads', type=int, default=4, help='Number of threads for parallel processing')
     batch_parser.add_argument('--pdb_dir', type=str, help='Directory containing local PDB files (supports .gz files).')
-    arg_parser.add_argument('-l', help='Log file')
+    arg_parser.add_argument('-l', help='Log file', default='process.log')
 
     args = arg_parser.parse_args()
+    print(vars(args))  # Debug: Check all parsed arguments
+
     # Set up logging to save logs in a file
     log_file = args.l
     logging.basicConfig(
@@ -35,6 +36,7 @@ def main():
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_file, mode="w"),
+            logging.StreamHandler()
         ]
     )
     logger = logging.getLogger(__name__)
