@@ -1,12 +1,15 @@
 # GeomeTRe documentation
-GeomeTRe is a python package developed to calculated geometrical parameters of repeat proteins.
+**GeomeTRe** is a Python package developed to calculate geometrical parameters of repeat proteins. Repeat proteins are characterized by repeated patterns in their structures, and understanding their geometry—such as curvature, twist, and pitch—is essential for studying their stability and classification. **GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
 
 ## Installation
 The software can be installed with pip or used without installing it a library or as a command line tool.
 
 #### Command line tool
 
-export PYTHONPATH="${PYTHONPATH}:/home/damiano/Projects/GeomeTRe/src/geometre"
+To use the package as a command-line tool without installation, ensure the paths are set in your environment.
+
+Example:
+`export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"`
 
 #### PIP installation
 To install the package directly from GitHub:
