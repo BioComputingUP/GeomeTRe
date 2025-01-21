@@ -53,7 +53,7 @@ process.log file is generated to help track the operations.
 
 Example: 
 
-`geometre batch --batch test_batch.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir download_pdb/pdb_str/`
+`geometre batch --batch test.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir home/user/pdb_dir/`
 
 process.log file is generated to help track the operations.
 

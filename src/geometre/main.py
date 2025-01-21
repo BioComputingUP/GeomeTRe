@@ -3,7 +3,7 @@ import logging
 
 def main():
     arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
-    subparsers = arg_parser.add_subparsers(dest='mode', required=True)
+    subparsers = arg_parser.add_subparsers(dest='mode')
 
     # Single file mode
     single_parser = subparsers.add_parser('single', help='Process a single PDB/CIF file')
@@ -44,7 +44,7 @@ def main():
         # Set up logging to save logs in a file
         log_file = args.l
         logging.basicConfig(
-            level=logging.WARNINGS,
+            level=logging.WARNING,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(log_file, mode="w"),

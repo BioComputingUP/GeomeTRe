@@ -7,6 +7,7 @@ import requests
 import gzip
 import shutil
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -18,34 +19,25 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
     try:
         if pdb_dir:
             # Check for both uncompressed and .gz files in the local directory
-            local_file = os.path.join(pdb_dir, f"{pdb_id}.{file_format}")
-            local_gz_file = os.path.join(pdb_dir, f"{pdb_id}.{file_format}.gz")
-            logger.debug(f"Checking for file: {local_file}")
-            logger.debug(f"Checking for file: {local_gz_file}")
-
-            if os.path.exists(local_file):
-                logger.info(f"Using local structure file for {pdb_id}.{file_format}")
-                return local_file
-
-            if os.path.exists(local_gz_file):
-                # Decompress the .gz file to a temporary location
-                decompressed_file = os.path.join(temp_dir, f"{pdb_id}.{file_format}")
-                with gzip.open(local_gz_file, 'rb') as gz_file:
-                    with open(decompressed_file, 'wb') as out_file:
-                        shutil.copyfileobj(gz_file, out_file)
-                logger.info(f"Decompressed and using local structure file for {pdb_id}.{file_format}")
-                return decompressed_file
+            possible_extensions = [".pdb", ".pdb.gz", ".ent", ".ent.gz"]
+            for ext in possible_extensions: #this is stupid
+                local_file = os.path.join(pdb_dir, f"{pdb_id}{ext}")
+                if os.path.exists(local_file):
+                    logger.info(f"Using local structure file: {local_file}")
+                    print(local_file)
+                    return local_file
 
         # If not found locally, download the file
-        url = f"https://files.rcsb.org/download/{pdb_id}.{file_format}"
-        logger.debug(f"Attempting to download file from URL: {url}")
         file_path = os.path.join(temp_dir, f"{pdb_id}.{file_format}")
-        if not os.path.exists(file_path):
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            with open(file_path, "wb") as f:
-                f.write(response.content)
-            logger.info(f"Downloaded {pdb_id}.{file_format}")
+        url = f"https://files.rcsb.org/download/{pdb_id}.{file_format}"
+        logger.debug(f"Attempting to download file from: {url}")
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+        logger.info(f"Downloaded structure file to: {file_path}")
+
+        # Return the downloaded file path
         return file_path
 
     except Exception as e:
@@ -53,41 +45,45 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
         raise
 
 
-def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
+def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None, processed_files=None):
     try:
-        pdb_file = row["pdb_file"]  # Full path to the PDB file (no extension here)
-        chain = row["chain"]  # Chain column
-        if not chain or len(chain) != 1:
-            raise ValueError(f"Invalid chain value: {chain}. Ensure it’s a single character.")
-
-        # Parse units and insertion columns
+        pdb_file = row["pdb_file"]
+        chain = row["chain"]
         units = row["units"]
         insertions = row["insertion"] if pd.notna(row["insertion"]) else ""
 
-        # Handle file extensions and decompression
-        possible_extensions = [".pdb", ".pdb.gz", ".ent", ".ent.gz"]
-        structure_file = None
-        for ext in possible_extensions:
-            logger.debug(f"Checking for structure file: {full_path}")
-            full_path = f"{pdb_file}{ext}"
-            if os.path.exists(full_path):
-                structure_file = full_path
-                logger.info(f"Found structure file: {structure_file}")
-                break
+        # Track processed files
+        if processed_files is None:
+            processed_files = {}
 
-        # Raise an error if no valid file is found
-        if not structure_file:
-            raise FileNotFoundError(f"No structure file found for {pdb_file} with valid extensions.")
+        # Check if the structure file is already processed
+        if pdb_file in processed_files:
+            structure_file = processed_files[pdb_file]
+        else:
+            # Retrieve structure file (download or locate locally)
+            structure_file = get_structure_file(
+                pdb_id=Path(pdb_file).stem,  # Extract base filename without extensions
+                temp_dir=temp_dir,
+                file_format=file_format,
+                pdb_dir=pdb_dir
+            )
+            if not structure_file:
+                raise FileNotFoundError(f"No structure file found for {pdb_file} with valid extensions.")
 
-        # Decompress if necessary
-        if structure_file.endswith(".gz"):
-            decompressed_file = os.path.join(temp_dir, Path(structure_file).stem)  # Remove .gz
-            if not os.path.exists(decompressed_file):
-                with gzip.open(structure_file, "rb") as gz_file:
-                    with open(decompressed_file, "wb") as out_file:
-                        out_file.write(gz_file.read())
-            structure_file = decompressed_file
-        # Calculate repeats geometry
+            # Handle decompression if necessary
+            if structure_file.endswith(".gz"):
+                decompressed_file = os.path.join(temp_dir, Path(structure_file).stem)  # Remove .gz
+                if not os.path.exists(decompressed_file):
+                    with gzip.open(structure_file, "rb") as gz_file:
+                        with open(decompressed_file, "wb") as out_file:
+                            out_file.write(gz_file.read())
+                    logger.info(f"Decompressed file: {decompressed_file}")
+                structure_file = decompressed_file
+
+            # Mark the file as processed
+            processed_files[pdb_file] = structure_file
+
+        # Process the geometry for the current chain
         geometre(
             filepath=structure_file,
             chain=chain,
@@ -96,7 +92,6 @@ def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
             ins_ids=insertions,
             draw=False
         )
-
         # Verify output file
         if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
             logger.info(f"Processed and saved: {output_file}")
@@ -183,35 +178,35 @@ def modify_batch_columns(input_file, output_file):
         print(f"Error modifying batch output columns: {e}")
 
 
-
 def batch_repeats_geometry(tsv_path, output_path, num_threads=4, file_format="cif", pdb_dir=None):
     """
     Batch processes single_processing in parallel and modifies the output columns.
     """
     try:
-    data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
-    temp_files = []
+        data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
+        temp_files = []
+        processed_files = {}
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = []
-            for idx, row in data.iterrows():
-                temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
-                temp_files.append(temp_file)
-                futures.append(
-                    executor.submit(
-                        process_entry, row, temp_dir, temp_file, file_format, pdb_dir
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                futures = []
+                for idx, row in data.iterrows():
+                    logger.debug(f"Submitting row {idx}: {row.to_dict()}")
+                    temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
+                    temp_files.append(temp_file)
+                    futures.append(
+                        executor.submit(
+                            process_entry, row, temp_dir, temp_file, file_format, pdb_dir, processed_files
+                        )
                     )
-                )
 
-            for future in futures:
-                try:
-                    future.result()
-                except Exception as e:
-                    logger.error(f"Thread failed: {e}")
+                for future in futures:
+                    try:
+                        future.result()
+                    except Exception as e:
+                        logger.info(f"Row {idx} processed successfully.")
 
             logger.info(f"Temporary files created: {temp_files}")
-
             merged_file = merge_results(temp_files, output_path)
 
             if merged_file:
