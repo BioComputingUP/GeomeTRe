@@ -20,11 +20,10 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
         if pdb_dir:
             # Check for both uncompressed and .gz files in the local directory
             possible_extensions = [".pdb", ".pdb.gz", ".ent", ".ent.gz"]
-            for ext in possible_extensions: #this is stupid
+            for ext in possible_extensions:
                 local_file = os.path.join(pdb_dir, f"{pdb_id}{ext}")
                 if os.path.exists(local_file):
                     logger.info(f"Using local structure file: {local_file}")
-                    print(local_file)
                     return local_file
 
         # If not found locally, download the file
