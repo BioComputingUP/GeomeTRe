@@ -20,6 +20,8 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
             # Check for both uncompressed and .gz files in the local directory
             local_file = os.path.join(pdb_dir, f"{pdb_id}.{file_format}")
             local_gz_file = os.path.join(pdb_dir, f"{pdb_id}.{file_format}.gz")
+            logger.debug(f"Checking for file: {local_file}")
+            logger.debug(f"Checking for file: {local_gz_file}")
 
             if os.path.exists(local_file):
                 logger.info(f"Using local structure file for {pdb_id}.{file_format}")
@@ -36,6 +38,7 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
 
         # If not found locally, download the file
         url = f"https://files.rcsb.org/download/{pdb_id}.{file_format}"
+        logger.debug(f"Attempting to download file from URL: {url}")
         file_path = os.path.join(temp_dir, f"{pdb_id}.{file_format}")
         if not os.path.exists(file_path):
             response = requests.get(url, timeout=10)
@@ -52,17 +55,38 @@ def get_structure_file(pdb_id, temp_dir, file_format="cif", pdb_dir=None):
 
 def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
     try:
-        # Extract pdb_chain, pdb_id, and chain
-        pdb_chain = row["pdb_chain"]
-        pdb_id, chain = pdb_chain[:-1], pdb_chain[-1]
+        pdb_file = row["pdb_file"]  # Full path to the PDB file (no extension here)
+        chain = row["chain"]  # Chain column
+        if not chain or len(chain) != 1:
+            raise ValueError(f"Invalid chain value: {chain}. Ensure it’s a single character.")
 
         # Parse units and insertion columns
         units = row["units"]
-        insertions = row["insertion"] if pd.notna(row["insertion"]) and row["insertion"] != 'NA' else ""
+        insertions = row["insertion"] if pd.notna(row["insertion"]) else ""
 
-        # Retrieve the structure file
-        structure_file = get_structure_file(pdb_id, temp_dir, file_format, pdb_dir)
+        # Handle file extensions and decompression
+        possible_extensions = [".pdb", ".pdb.gz", ".ent", ".ent.gz"]
+        structure_file = None
+        for ext in possible_extensions:
+            logger.debug(f"Checking for structure file: {full_path}")
+            full_path = f"{pdb_file}{ext}"
+            if os.path.exists(full_path):
+                structure_file = full_path
+                logger.info(f"Found structure file: {structure_file}")
+                break
 
+        # Raise an error if no valid file is found
+        if not structure_file:
+            raise FileNotFoundError(f"No structure file found for {pdb_file} with valid extensions.")
+
+        # Decompress if necessary
+        if structure_file.endswith(".gz"):
+            decompressed_file = os.path.join(temp_dir, Path(structure_file).stem)  # Remove .gz
+            if not os.path.exists(decompressed_file):
+                with gzip.open(structure_file, "rb") as gz_file:
+                    with open(decompressed_file, "wb") as out_file:
+                        out_file.write(gz_file.read())
+            structure_file = decompressed_file
         # Calculate repeats geometry
         geometre(
             filepath=structure_file,
@@ -79,9 +103,7 @@ def process_entry(row, temp_dir, output_file, file_format, pdb_dir=None):
         else:
             logger.warning(f"Output file not created: {output_file}")
     except Exception as e:
-        logger.error(f"Error processing {row['pdb_chain']}: {e}")
-
-
+        logger.error(f"Error processing {row['pdb_file']}: {e}")
 
 
 def merge_results(temp_files, output_path):
@@ -167,26 +189,26 @@ def batch_repeats_geometry(tsv_path, output_path, num_threads=4, file_format="ci
     Batch processes single_processing in parallel and modifies the output columns.
     """
     try:
-        data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_chain": str, "units": str, "insertion": str})
-        temp_files = []
+    data = pd.read_csv(tsv_path, sep="\t", dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
+    temp_files = []
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                futures = []
-                for idx, row in data.iterrows():
-                    temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
-                    temp_files.append(temp_file)
-                    futures.append(
-                        executor.submit(
-                            process_entry, row, temp_dir, temp_file, file_format, pdb_dir
-                        )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = []
+            for idx, row in data.iterrows():
+                temp_file = os.path.join(temp_dir, f"output_{idx}.csv")
+                temp_files.append(temp_file)
+                futures.append(
+                    executor.submit(
+                        process_entry, row, temp_dir, temp_file, file_format, pdb_dir
                     )
+                )
 
-                for future in futures:
-                    try:
-                        future.result()
-                    except Exception as e:
-                        logger.error(f"Thread failed: {e}")
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.error(f"Thread failed: {e}")
 
             logger.info(f"Temporary files created: {temp_files}")
 

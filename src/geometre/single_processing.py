@@ -6,8 +6,8 @@ from Bio.PDB import PDBParser, FastMMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
 
-# import warnings
-# from Bio.PDB.PDBExceptions import PDBConstructionWarning
+import warnings
+from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
 # Suppress PDBConstructionWarnings
 from .geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
