@@ -103,11 +103,14 @@ The pitch axis is the vector connecting the geometric center to the center of ro
  	      means a bad performance on the algorithm for that unit pair.
  Additionally, last 2 rows are showing mean and standard deviations of each parameter. The first row is all zeros, since the rows refer to the unit and the unit before it.
 
-	pymol drawing contains the following objects:
-	    - In yellow, the line connecting the geometric centers of each unit to each other, and the lines connecting the rotation centers to each geometric center
-	    - In green, the twist axis of each unit
-	    - In blue, the pitch axis of each unit. Units that are at the edge of the 6 units window have two pitch axes (one for each rotation center)
-	    - In red, orange and white, the components found by PCA.
+
+	PyMOL drawing contains the following axis:
+	    - In red, twist axis of each repeat unit(RU) which is always parallel to the longest dimension of the protein
+	    - In orange, twist axis of each RU
+	    - In white, yaw axis of each RU
+The example of PyMOL drawing in png format with explanation text is below
+
+![Example of PyMOL drawing](example_2xqh.png)
 
  - batch mode output:
  	- pdb id: the PDB id of the molecule
