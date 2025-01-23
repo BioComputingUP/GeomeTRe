@@ -167,7 +167,7 @@ The pitch axis is the vector connecting the geometric center to the center of ro
 	    - In white, yaw axis of each RU
 The example of PyMOL drawing in png format with explanation text is below
 
-![Example of PyMOL drawing](example_2xqh.png)
+![Example of PyMOL drawing](/example_2xqh.png)
 
 batch mode output:
 
