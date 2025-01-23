@@ -1,62 +1,119 @@
 # GeomeTRe documentation
+## Description
+
 **GeomeTRe** is a Python package developed to calculate geometrical parameters of repeat proteins. Repeat proteins are characterized by repeated patterns in their structures, and understanding their geometry—such as curvature, twist, and pitch—is essential for studying their stability and classification. **GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
 
 ## Installation
-The software can be installed with pip or used without installing it a library or as a command line tool.
+The software can be installed by `pip` and `conda`.
 
-#### Command line tool
+1. Clone the repository :
 
-To use the package as a command-line tool without installation, ensure the paths are set in your environment.
+   `git clone https://github.com/BioComputingUP/GeomeTRe/tree/main`
 
-Example:
+   `cd GeomeTRe`
+
+2. Create and activate a new conda environment
+
+   `conda create -n geometre`
+
+   `conda activate geometre`
+
+3. Install the package and dependencies:
+
+   `pip install .`
+
+4. It is also possible to install only just `pip`:
+
+   `pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
+
+To use the package as a command-line tool without installation, ensure the paths are set in your environment
+
+`Example:`
 `export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"`
 
-#### PIP installation
-To install the package directly from GitHub:
-`pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
+## Usage
 
 Check the installation:
-`pip list | grep GeomeTRe`  or `geometre --help`
+`pip list | grep GeomeTRe` 
 
 Uninstall package:
 `pip uninstall geometre`
 
-## Command line syntax for single mode
+### Command line tool
+
+**For single mode use:**
+
 `geometre single input_path chain units_def -ins insertion -o output_path --draw`
 
-- single: single file mode
-- input_path: path to .pdb or .cif file to analyze
-- chain: chain to analyze
-- units_def: repeat unit star and end positions, written as s1_e1,s2_e2, etc.
-- ins insertions: insertion start and end positions, written as the units
-- -o output_path: the output of the program will be saved as a csv file within the specified, existing directory 
-- --draw: if used, the output will include a PyMOL drawing of the protein structure
+**required arguments:**
 
-Use -h option to display help information.
+- `single`: single file mode
 
-Example:
+- `input_path`: path to .pdb or .cif file to analyze
+
+- `chain`: chain to analyze
+
+- `units_def`: repeat unit star (s) and end positions (e), written as s1_e1,s2_e2, etc.
+
+- `ins`: insertion start and end positions, written as the units
+
+- `-o`: the output of the program will be saved as a csv file within the specified, existing directory 
+
+  **optional argument:**
+
+- `--draw`: if used, the output will include a PyMOL drawing of the protein structure
+
+Use `-h` option to display help information.
+
+ `geometre --help`
+
+Example of single mode usage:
 
 `geometre single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw`
 
-process.log file is generated to help track the operations.
+`process.log` file is generated to help track the operations.
 
+**For batch mode use:**
 
-## Command line syntax for batch mode
 `geometre batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures`
 
-- batch: single mode
-- input_file.tsv is a tab separated file with 3 columns: the pdb id+chain (ex:2xqhA), units repeat units' star and end positions, written as s1_e1,s2_e2, etc, and insertion (NA if no insertions)
-- output_file.csv is the path to the output file in a csv format:
-- format: format of input file of protein structures (pdb or cif)
-- threads: number of jobs to run in parallel
-- pdb_dir: directory of pdb structures downloaded
+- `batch`: batch mode
 
-Example: 
+- `input_path`: *input_file.tsv* is a tab separated file with 3 columns: the pdb id+chain (ex:2xqhA), units repeat units' start and end positions, written as s1_e1,s2_e2, etc, and insertion (if available)
+
+- `output`: output_file.csv is the path to the output file in a csv format:
+
+- `format`: format of input file of protein structures (pdb or cif)
+
+- `pdb_dir`: directory of pdb structures
+
+  **optional argument:**
+
+- `threads`: number of jobs to run in parallel (default num_threads = 4)
+
+Example of batch mode usage: 
 
 `geometre batch --batch test.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir home/user/pdb_dir/`
 
-process.log file is generated to help track the operations.
+`process.log` file is generated to help track the operations.
 
+### Python package
+
+To use GeomeTRe directly in a Python script:
+
+`from geometre import GeomeTRe`
+
+`#Initialize with PyMOL drawing enabled`
+`geometre = GeomeTRe(draw_enabled=True)`
+
+``#Process a single file`
+`result = geometre.single(`
+    `pdb_filepath="/home/user/Desktop/test/4u3j.pdb",`
+    `chain="C",`
+    `units_def="324_363,364_408,409_454,455_491,492_533,534_559",`
+    `insertion="",`
+    `output_path="result_single_mode.csv"``
+`)`
 
 ## Required Dependencies
 This package requires the following dependencies to run:
@@ -70,7 +127,7 @@ This package requires the following dependencies to run:
   - tmtools
   - requests
 - **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to use the `--draw` option.
-    conda install -c conda-forge pymol-open-source
+    `conda install -c conda-forge pymol-open-source`
 
 ## CALCULATION OF PARAMETERS
 
@@ -112,23 +169,25 @@ The example of PyMOL drawing in png format with explanation text is below
 
 ![Example of PyMOL drawing](example_2xqh.png)
 
- - batch mode output:
- 	- pdb id: the PDB id of the molecule
-	- chain: chain of PDB structure
-	- curv_mean: mean of curvature
-	- curv_std: standard deviation of curvature
-	- twist_mean: mean of twist
-	- twist_std: standard deviation of twist
-	- twist_sign_mean: mean of twist handedness
-	- twist_sign_std: standard deviation of twist handedness
-	- pitch_mean: mean of pitch
-	- pitch_std: standard deviation of pitch
-	- pitch_sign_mean: mean of pitch handedness
-	- pitch_sign_std: standard deviation of pitch handedness
-	- tmscores_mean: mean of tmtool score
-	- tmscores_std: standard deviation of tmtool score
-	- yaw_mean: mean of yaw
-	- yaw_std: standard deviation of yaw
+batch mode output:
+
+- pdb id: the PDB id of the molecule
+
+- chain: chain of PDB structure
+- curv_mean: mean of curvature
+- curv_std: standard deviation of curvature
+- twist_mean: mean of twist
+- twist_std: standard deviation of twist
+- twist_sign_mean: mean of twist handedness
+- twist_sign_std: standard deviation of twist handedness
+- pitch_mean: mean of pitch
+- pitch_std: standard deviation of pitch
+- pitch_sign_mean: mean of pitch handedness
+- pitch_sign_std: standard deviation of pitch handedness
+- tmscores_mean: mean of tmtool score
+- tmscores_std: standard deviation of tmtool score
+- yaw_mean: mean of yaw
+- yaw_std: standard deviation of yaw
 
 
 ### input_repeatsdb_v4_filtered.tsv
