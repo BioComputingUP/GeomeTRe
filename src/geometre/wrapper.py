@@ -1,67 +1,73 @@
 import os
-from geometre.single_processing import geometre
-from geometre.batch_processing import batch_repeats_geometry
+import logging
+import pandas as pd
+from .single_processing import geometre
+from .batch_processing import batch_repeats_geometry
 
+logger = logging.getLogger(__name__)
 
 class GeomeTRe:
-    def __init__(self, draw_enabled=False):
+    def __init__(self, draw_enabled=False, output_dir="./results"):
         """
         Initialize the GeomeTRe API.
-
         Args:
-            draw_enabled (bool): Whether to enable PyMOL drawing during processing.
+            draw_enabled (bool): Enable PyMOL visualization.
+            output_dir (str): Directory to save output files (default: "./results").
         """
         self.draw_enabled = draw_enabled
+        self.output_dir = os.path.abspath(output_dir)
 
-    def single(self, pdb_filepath, chain, units_def, insertion="", output_path=""):
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
+        logger.info(f"Initialized GeomeTRe with output directory: {self.output_dir}")
+
+    def compute(self, mode, **kwargs):
         """
-        Process a single PDB or CIF file.
-
+        Method for both single and batch processing.
         Args:
-            pdb_filepath (str): Path to the input PDB or CIF file.
-            chain (str): Chain ID to analyze.
-            units_def (str): Repeat unit definitions (e.g., "10_50,51_100").
-            insertion (str): Optional insertions (default: "").
-            output_path (str): Path to save the output CSV file.
-
+            mode (str): "single" or "batch"
+            **kwargs: Parameters for `geometre` (single) or `batch_repeats_geometry` (batch).
         Returns:
-            result: DataFrame of computed properties.
-            stats: Summary statistics.
+            str: Path to the output file.
         """
-        return geometre(
-            filepath=pdb_filepath,
-            chain=chain,
-            units_ids=units_def,
-            o_path=output_path,
-            ins_ids=insertion,
-            draw=self.draw_enabled
-        )
+        if mode not in ["single", "batch"]:
+            raise ValueError("Invalid mode. Choose 'single' or 'batch'.")
 
-    def batch(self, tsv_filepath, output_path, num_threads=4, file_format="cif", pdb_dir=None):
+        # Default output filenames based on mode
+        if mode == "single":
+            kwargs["filepath"] = kwargs.pop("filepath", None)  # Rename argument
+            if "filepath" not in kwargs or kwargs["filepath"] is None:
+                raise ValueError("Missing required argument: 'filepath' for single mode.")
+
+            # Automatically generate filename based on PDB ID
+            output_path = os.path.join(self.output_dir, f"{os.path.basename(kwargs['filepath'])}_result.csv")
+            kwargs["o_path"] = output_path  # Fix argument name
+
+        else:  # Batch mode
+            output_path = os.path.join(self.output_dir, "batch_results.csv")
+            kwargs["output_path"] = output_path  # Assign default batch output path
+
+        # Ensure the directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # Select the correct function
+        processing_function = geometre if mode == "single" else batch_repeats_geometry
+        logger.info(f"Starting {mode} processing: Output -> {output_path}")
+
+        # Call function with updated kwargs
+        processing_function(**kwargs)
+
+        return output_path  # Return final saved file path
+
+    def display_results(self, file_path):
         """
-        Process multiple files in batch mode.
-
+        Display processed results from a CSV file.
         Args:
-            tsv_filepath (str): Path to the input TSV file.
-            output_path (str): Path to save the output CSV file.
-            num_threads (int): Number of threads for parallel processing (default: 4).
-            file_format (str): Format of input files ("cif" or "pdb").
-            pdb_dir (str): Directory containing local PDB files (required).
-
-        Raises:
-            ValueError: If pdb_dir is not provided or does not exist.
+            file_path (str): Path to the output CSV file.
         """
-        if not pdb_dir:
-            raise ValueError("The 'pdb_dir' argument is required for batch processing.")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File '{file_path}' not found.")
 
-        if not os.path.exists(pdb_dir):
-            raise ValueError(f"The specified pdb_dir '{pdb_dir}' does not exist.")
-
-        return batch_repeats_geometry(
-            tsv_path=tsv_filepath,
-            output_path=output_path,
-            num_threads=num_threads,
-            file_format=file_format,
-            pdb_dir=pdb_dir
-        )
-
+        df = pd.read_csv(file_path)
+        print(df.head())  # Display only the first few rows
+        return df
