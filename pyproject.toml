@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geometre"
+version = "0.1.0"
+description = "Calculate repeat protein geometrical properties"
+readme = "README.md"
+authors = [
+    {name = "Zarifa Osmanli", email = "zerifaosmanli@gmail.com"},
+    {name = "Elisa Ferrero", email = " "},
+    {name = "Damiano Piovesan", email = "damiano.piovesan@unipd.it"}
+]
+license = {text = "GNU General Public License v3.0"}
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "biopython",
+    "tmtools",
+    "scikit-image",
+    "requests"
+]
+requires-python = ">=3.6"
+
+[project.optional-dependencies]
+draw = ["pymol"]
+
+[project.scripts]
+geometre = "main:main"  
+
+[tool.setuptools]
+packages = ["geometre"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+

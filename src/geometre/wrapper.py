@@ -1,8 +1,8 @@
 import os
 import logging
 import pandas as pd
-from .single_processing import geometre
-from .batch_processing import batch_repeats_geometry
+from geometre.single_processing import geometre
+from geometre.batch_processing import batch_repeats_geometry
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,24 @@ class GeomeTRe:
         processing_function(**kwargs)
 
         return output_path  # Return final saved file path
+
+    def run_pymol(self, input_pdb, output_data):
+        """
+        Run the PyMOL visualization script separately.
+        Args:
+            input_pdb (str): Path to the PDB file.
+            output_data (str): Path to the output file containing geometric data.
+        """
+        pymol_script = os.path.join(os.path.dirname(__file__), "pymol_drawing.py")
+        
+        if not os.path.exists(pymol_script):
+            logger.warning("PyMOL script not found. Skipping visualization.")
+            return
+
+        # Run the PyMOL script as a subprocess
+        cmd = f"python {pymol_script} --input {input_pdb} --data {output_data}"
+        logger.info(f"Running PyMOL script: {cmd}")
+        os.system(cmd)
 
     def display_results(self, file_path):
         """

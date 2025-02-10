@@ -10,7 +10,14 @@ import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
 # Suppress PDBConstructionWarnings
-from .geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+from geometre.geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
+
+# Try importing PyMOL drawing (optional)
+try:
+    from pymol_drawing import pymol_drawing  
+    pymol_available = True
+except ImportError:
+    pymol_available = False
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
@@ -171,26 +178,28 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
 
     # Save or display output
     output_path = Path(o_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure the parent directory exists
-    pd.DataFrame([stats]).to_csv(output_path, index=False)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False, float_format='%.4f')
+
     logging.info(f"Results saved to {output_path}")
 
-    if not df.empty:
-        df.to_csv(output_path, index=False, float_format='%.4f')
-        logging.info(f"Output successfully saved to {output_path}")
-    else:
-        logging.warning(f" The DataFrame is empty and no data to save. No file was created at {output_path}.")
+    # Save PyMOL data separately for future visualization
+    pymol_output_path = output_path.with_suffix('.npy')
+    np.save(pymol_output_path, {
+        "geometric_centers": np.array(geometric_centers),
+        "rot_centers": np.array(rot_centers),
+        "twist_axis": np.array(twist_axis),
+        "pitch_axis": np.array(pitch_axis),
+        "units_rots": np.array(units_rots),
+        "units_coords": np.array(units_coords),
+    })
+    logging.info(f"PyMOL-compatible data saved to {pymol_output_path}")
 
-    # Drawing with PyMOL
-    if draw:
-        if not df.empty:
-            # Call the PyMOL drawing function
-            pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots,
-                          units_coords)
-
-            logger.info(f"PyMOL visualization saved.")
-        else:
-            logging.error(f"Missing required inputs for PYMOL visualization for file {filepath}, chain: {chain}: {e}")
+    # Optional PyMOL execution if enabled
+    if draw and pymol_available:
+        pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords)
+        logger.info("PyMOL visualization generated.")
+    elif draw:
+        logger.warning("PyMOL is not installed. Skipping visualization.")
 
     return df, stats
-
