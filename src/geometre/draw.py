@@ -7,6 +7,16 @@ from sklearn.decomposition import PCA
 
 logger = logging.getLogger(__name__)
 
+
+"""
+"geometric_centers": np.array(geometric_centers),
+"rot_centers": np.array(rot_centers),
+"twist_axis": np.array(twist_axis),
+"pitch_axis": np.array(pitch_axis),
+"units_rots": np.array(units_rots),
+"units_coords": np.array(units_coords, dtype="object"),
+"""
+
 def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords):
 
     """Draw geometrical properties using PyMOL."""
@@ -109,4 +119,4 @@ if __name__ == "__main__":
     pymol_drawing(args.input, **pymol_data)
 
 #run command
-#python pymol_drawing.py --input my_structure.pdb --data saved_data.npy
+#python draw.py --input my_structure.pdb --data saved_data.npy

@@ -10,6 +10,7 @@ import tmtools
 
 logger = logging.getLogger(__name__)
 
+
 def orthogonalize(v, n):
     """Orthogonalize vector v to vector n."""
     logger.debug(f"Orthogonalizing vector {v} to {n}.")
@@ -89,24 +90,32 @@ def widest_circle_fit(units, centers, window=6):
         # Find plane of rotation of units, and project them onto it
         pca = PCA(n_components=2)
         pca.fit(pca_centers)
+
+        # Project centroids along the plane defined by the first 2 PCA components
         pca_centers = pca.transform(pca_centers)
 
+        # Project all point of the units
         data_transformed = []
         for unit in data_to_fit:
             data_transformed.append(pca.transform(unit))
 
+        # Find the widest crown in the 2D plane starting from the centers of the centroids but
+        # considering all the projected coordinates of the C-alpha
         circle = CircleModel()
         circle.estimate(pca_centers)
-        res = minimize(widest_circle, circle.params[0:2], args=(data_transformed))  # Find widest crown in the 2D plane
+        res = minimize(widest_circle, circle.params[0:2], args=(data_transformed))
 
         center = res.x
         centers_list.append(pca.inverse_transform(center))
         index_list.append([*range(min_index, max_index)])
-        score_list.append(np.std([norm(center - geo_center) for geo_center in pca_centers]))
 
+        # Fun is the value of the objective function at x
+        # Here we are changing the sign for keeping the smallest crown
+        score_list.append(-res.fun)
+
+    # Select the widest crown
     def_centers = np.empty((num_units - 1, 3))
     best_score = np.full(num_units - 1, np.inf)
-
     for center, indexes, score in zip(centers_list, index_list, score_list):  # For each unit pair, select center corresponding to the widest crown
         act_indexes = indexes[:-1]
         score_to_confront = best_score[act_indexes]
@@ -129,19 +138,23 @@ def build_ref_axes(geometric_centers, rot_centers):
     twist_axis = []
     rots = []
 
+    # Pitch vectors
     for i in range(num_centers - 1):
         vec_1 = rot_centers[i] - geometric_centers[i]
-        vec_1 /= norm(vec_1)
+        vec_1 /= norm(vec_1)  # Obtain the versor instead of the vector
         vec_2 = rot_centers[i] - geometric_centers[i + 1]
         vec_2 /= norm(vec_2)
         pitch_axis.append((vec_1, vec_2))
 
+    # Twist vectors
+    # Find the tangent of the rotational circle passing through the two centroids
     for i in range(num_centers - 1):
         twist_vect = geometric_centers[i + 1] - geometric_centers[i]
         vec_1 = orthogonalize(twist_vect, pitch_axis[i][0])
         vec_2 = orthogonalize(twist_vect, pitch_axis[i][1])
         twist_axis.append((vec_1, vec_2))
 
+    # Obtain the curvature (yaw) axis with cross product between the twist and pitch axis
     for i in range(num_centers - 1):
         try:
             rots.append(

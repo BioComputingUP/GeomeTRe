@@ -9,7 +9,7 @@ description = "Calculate repeat protein geometrical properties"
 readme = "README.md"
 authors = [
     {name = "Zarifa Osmanli", email = "zerifaosmanli@gmail.com"},
-    {name = "Elisa Ferrero", email = " "},
+    {name = "Elisa Ferrero", email = "ferreroelisa579@gmail.com"},
     {name = "Damiano Piovesan", email = "damiano.piovesan@unipd.it"}
 ]
 license = {text = "GNU General Public License v3.0"}

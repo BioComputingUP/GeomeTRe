@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -10,19 +11,12 @@ import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
 # Suppress PDBConstructionWarnings
-from geometre.geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes, pymol_drawing
-
-# Try importing PyMOL drawing (optional)
-try:
-    from pymol_drawing import pymol_drawing  
-    pymol_available = True
-except ImportError:
-    pymol_available = False
+from geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
 
-def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
+def compute(filepath, chain, units_ids, ins_ids=None, o_path=None):
     """Calculate geometrical parameters for repeats."""
     logging.info(f"Processing file: {filepath}, chain: {chain}")
 
@@ -94,26 +88,36 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
     # Calculate geometrical centers and rotations
     geometric_centers = [np.mean(coords, axis=0) for coords in units_coords]
     num_centers = len(geometric_centers)
+
+    # Find the center of the circle
     rot_centers = widest_circle_fit(units_coords, geometric_centers)
     logging.info("Geometric centers and rotation centers calculated.")
+
+    # Calculate rotation angle (yaw angle) for each pair of units
     rot_angles = [
         get_angle(geometric_centers[i] - rot_centers[i], geometric_centers[i + 1] - rot_centers[i])
         for i in range(num_centers - 1)
     ]
+
+    # Calculate the axes
     pitch_axis, twist_axis, rots = build_ref_axes(geometric_centers, rot_centers)
     logging.info("Reference axes built for geometry calculations.")
 
     # Calculate rotations and scores
     units_rots, tmscores = [], []
     for i in range(num_centers - 1):
+        # TM-align
+        # We provide rots to superimpose the reference systems of the two consecutive units
         alignment = get_unit_rotation(units_coords[i:i + 2], units_seqs[i:i + 2], rots[i])
-        units_rots.append(alignment.u)
-        tmscores.append(alignment.tm_norm_chain1)
+        units_rots.append(alignment.u)  # Rotation matrix
+        tmscores.append(alignment.tm_norm_chain1)  # TM-score
 
     # Decompose rotation into pitch, twist, and yaw
     pitchlist, twistlist, twist_handednesslist, pitch_handednesslist, yawlist = [], [], [], [], []
     for i in range(num_centers - 1):
         rotation = units_rots[i]
+        # The perfect units should have a yaw of zero here, because they start from the same reference system.
+        # It is used here a sanity check
         twist, pitch, yaw = Rotation.from_matrix(rotation).as_euler('xyz')
         twistlist.append(abs(twist))
         twist_handednesslist.append(np.sign(twist))
@@ -122,6 +126,7 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
         yawlist.append(abs(yaw))
 
     # Compute statistics
+    # Curvature, twist, twist_h, pitch, puitch_h, yaw (curvature sanity check)
     stats = [
         np.nanmean(rot_angles), np.nanstd(rot_angles),
         np.nanmean(twistlist), np.nanstd(twistlist),
@@ -131,6 +136,7 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
         np.nanmean(tmscores), np.nanstd(tmscores),
         np.nanmean(yawlist), np.nanstd(yawlist)
     ]
+
     # DataFrame output
     rot_angles.extend(stats[0:2])
     twistlist.extend(stats[2:4])
@@ -177,29 +183,30 @@ def geometre(filepath, chain, units_ids, o_path, ins_ids=None, draw=False):
     df = pd.DataFrame(data=d)
 
     # Save or display output
-    output_path = Path(o_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False, float_format='%.4f')
+    if o_path is not None:
 
-    logging.info(f"Results saved to {output_path}")
+        output_path = Path(o_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output_path, index=False, float_format='%.4f')
+        logging.info(f"Results saved to {output_path}")
 
-    # Save PyMOL data separately for future visualization
-    pymol_output_path = output_path.with_suffix('.npy')
-    np.save(pymol_output_path, {
-        "geometric_centers": np.array(geometric_centers),
-        "rot_centers": np.array(rot_centers),
-        "twist_axis": np.array(twist_axis),
-        "pitch_axis": np.array(pitch_axis),
-        "units_rots": np.array(units_rots),
-        "units_coords": np.array(units_coords),
-    })
-    logging.info(f"PyMOL-compatible data saved to {pymol_output_path}")
+        # Save PyMOL data separately for future visualization
+        pymol_output_path = output_path.with_suffix('.npy')
+        np.save(pymol_output_path, {
+            "geometric_centers": np.array(geometric_centers),
+            "rot_centers": np.array(rot_centers),
+            "twist_axis": np.array(twist_axis),
+            "pitch_axis": np.array(pitch_axis),
+            "units_rots": np.array(units_rots),
+            "units_coords": np.array(units_coords, dtype="object"),
+        })
+        logging.info(f"PyMOL-compatible data saved to {pymol_output_path}")
 
     # Optional PyMOL execution if enabled
-    if draw and pymol_available:
-        pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords)
-        logger.info("PyMOL visualization generated.")
-    elif draw:
-        logger.warning("PyMOL is not installed. Skipping visualization.")
+    # if draw and pymol_available:
+    #     pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords)
+    #     logger.info("PyMOL visualization generated.")
+    # elif draw:
+    #     logger.warning("PyMOL is not installed. Skipping visualization.")
 
     return df, stats
