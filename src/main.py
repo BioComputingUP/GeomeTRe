@@ -1,4 +1,4 @@
-from argparse import ArgumentParser, FileType
+from argparse import ArgumentParser
 import logging
 import numpy as np
 import pandas as pd
@@ -7,9 +7,39 @@ from Bio.PDB import PDBList
 from geometre.process import compute
 
 
-def batch_compute(tsv_path, pdb_dir, output_path, num_threads=4, file_format="cif", ):
+def command_line():
+    arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
+    subparsers = arg_parser.add_subparsers(dest='mode')
+
+    # Single file mode
+    single_parser = subparsers.add_parser('single', help='Process a single PDB/CIF file')
+    single_parser.add_argument('filepath', help='Input structure file')
+    single_parser.add_argument('chain', help='Chain ID')
+    single_parser.add_argument('out_file', help='Output CSV file path')
+    single_parser.add_argument('unit_def', help='Units (10_50,51_100,...)')
+    single_parser.add_argument('-ins_def', help='Insertions (same as units)')
+
+    # Batch mode
+    batch_parser = subparsers.add_parser('batch', help='Batch process files from a TSV input')
+    batch_parser.add_argument('filepath', help='TSV file with list of structures and units')
+    batch_parser.add_argument('out_file', help='Output CSV file for results')
+    batch_parser.add_argument('-pdb_dir', help='PDB files directory for download. '
+                                                         'If not provided assume file path in the input TSV')
+    batch_parser.add_argument('-threads', type=int, default=4,
+                              help='Number of threads for parallel processing')
+
+    drawing_parser = subparsers.add_parser('pymol', help='Generate PyMOL visualization from saved .npy data.')
+    drawing_parser.add_argument("pdb_filepath", help="Path to the input PDB file.")
+    drawing_parser.add_argument("npy_filepath", help="Path to the .npy file containing geometry data.")
+
+    # Logging setup
+    arg_parser.add_argument('-l', help='Log file path. Default standard error')
+    return arg_parser.parse_args()
+
+
+def batch_compute(tsv_path, pdb_dir, output_path, num_threads=4):
     df_input = pd.read_csv(tsv_path, sep="\t",
-                           dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str}).loc[0:10]
+                           dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
 
     if pdb_dir is not None:
         # Need to download structures, pdb_file column contains only identifiers
@@ -17,94 +47,67 @@ def batch_compute(tsv_path, pdb_dir, output_path, num_threads=4, file_format="ci
         pdbl.download_pdb_files([ele.split("/")[-1][:4] for ele in df_input['pdb_file'].unique()], pdir=pdb_dir)  # Download mmCIF by default
 
     # Iterate over all structures
+    # TODO implement multithread
     df_list = []
+    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'pitch', 'TM-score', 'yaw']
     for i, row in df_input.iterrows():
         structure_file = row["pdb_file"] if pdb_dir is None else "{}/{}.cif".format(pdb_dir, row["pdb_file"].split("/")[-1][:4])
-        df, stats = compute(filepath=structure_file, chain= row["chain"], units_ids=row["units"], ins_ids=row["insertion"])
-        df_list.append(df)
-    df_out = pd.concat(df_list)
+        df_ = compute(filepath=structure_file,
+                       chain= row["chain"],
+                       units_ids=row["units"],
+                       o_path=output_path,
+                       ins_ids=None if pd.isnull(row['insertion']) else row["insertion"],
+                       skip_npy=True)
 
-    # Combine mean and std on columns
-    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'pitch', 'TM-score', 'yaw']
-    df_out = pd.merge(df_out.loc[df_out['unit_start'] == 'mean', columns], df_out.loc[df_out['unit_start'] == 'mean', columns],
-             on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
+        # Combine mean and std on columns
+        if not df_.empty:
+            df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
+                           df_.loc[df_['unit_start'] == 'mean', columns],
+                           on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
+            df_list.append(df_)
 
-    df_out.to_csv(output_path, index=False, sep=",")
-    return
-
-
-def main():
-    arg_parser = ArgumentParser(description="Calculate repeat protein geometrical properties.")
-    subparsers = arg_parser.add_subparsers(dest='mode')
-
-    # Single file mode
-    single_parser = subparsers.add_parser('single', help='Process a single PDB/CIF file')
-    single_parser.add_argument('filepath', type=str, help='Path to input PDB or CIF file')
-    single_parser.add_argument('chain', help='Chain ID')
-    single_parser.add_argument('unit_def', help='Unit limits (e.g., 10_50,51_100)')
-    single_parser.add_argument('-ins', default='', help='Insertions (optional)')
-    single_parser.add_argument('-o', default='output.csv', help='Output CSV file path')
-
-    # Batch mode
-    batch_parser = subparsers.add_parser('batch', help='Batch process files from a TSV input')
-    batch_parser.add_argument('filepath', help='Input TSV file for batch processing')
-    batch_parser.add_argument('-pdb_dir', type=str, help='Directory containing PDB files, existing or to download (supports .gz files)')
-    batch_parser.add_argument('-o', help='Output CSV file for results')
-    batch_parser.add_argument('-format', choices=['cif', 'pdb'], default='cif',
-                               help='Choose file format for downloading (default: cif)')
-    batch_parser.add_argument('-threads', type=int, default=4, help='Number of threads for parallel processing')
-
-    drawing_parser = subparsers.add_parser('pymol', help='Generate PyMOL visualization from saved .npy data.')
-    drawing_parser.add_argument("pdb_filepath", help="Path to the input PDB file.")
-    drawing_parser.add_argument("filepath", help="Path to the .npy file containing geometry data.")
-
-    # Logging setup
-    # TODO log should not default to a file but to stderr only
-    arg_parser.add_argument('-l', help='Log file path (default: ./process.log)', default='./process.log')
-    args = arg_parser.parse_args()
-
-    # Set up logging before processing
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(args.l, mode="w"),
-            logging.StreamHandler()
-        ]
-    )
-    logger = logging.getLogger(__name__)
-    logger.info("Process started.")
-
-    # Single mode execution
-    if args.mode == 'single':
-        df, stats = compute(
-            filepath=args.filepath,
-            chain=args.chain,
-            units_ids=args.unit_def,
-            ins_ids=args.ins,
-            o_path=args.o
-        )
-        # logger.info(f"Single mode results saved to: {result_path}")
-
-    elif args.mode == 'batch':
-        logger.info(f"Running batch mode with arguments: {args.mode}, {args.o}, {args.format}, {args.threads}, {args.pdb_dir}")
-        batch_compute(
-            args.filepath,
-            args.pdb_dir,
-            args.o,
-            num_threads=args.threads,
-            file_format=args.format
-        )
-        # logger.info(f"Batch mode results saved to: {result_path}")
-
-    # Load saved PyMOL data
-    elif args.mode == 'pymol':
-        from geometre.draw import pymol_drawing
-        pymol_data = np.load(args.filepath, allow_pickle=True).item()
-        pymol_drawing(args.pdb_filepath, **pymol_data)
-
+    pd.concat(df_list).to_csv(output_path, index=False, sep=",")
     return
 
 
 if __name__ == '__main__':
-    main()
+
+    args = command_line()
+
+    # Set up logging before processing
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=[logging.StreamHandler()])
+
+    # Add file handler
+    logger = logging.getLogger(__name__)
+    if args.l:
+        logger.addHandler(logging.FileHandler(args.l, mode="w"),)
+    logger.debug("Process started.")
+
+    # Single mode execution
+    if args.mode == 'single':
+        df = compute(filepath=args.filepath,
+                     chain=args.chain,
+                     units_ids=args.unit_def,
+                     o_path=args.out_file,
+                     ins_ids=args.ins_def)
+
+        # logger.info(f"Single mode results saved to: {result_path}")
+
+    elif args.mode == 'batch':
+        logger.info(f"Running batch mode with arguments: {args.mode}, {args.filepath}, {args.out_file}, {args.threads}, {args.pdb_dir}")
+        batch_compute(args.filepath,
+                      args.pdb_dir,
+                      args.out_file,
+                      num_threads=args.threads)
+        # logger.info(f"Batch mode results saved to: {result_path}")
+
+    # Load saved PyMOL data and launch pymol
+    elif args.mode == 'pymol':
+        from geometre.draw import pymol_drawing
+        pymol_data = np.load(args.npy_filepath, allow_pickle=True).item()
+        pymol_drawing(args.pdb_filepath, **pymol_data)
+
+
+

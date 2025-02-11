@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -7,46 +6,45 @@ from Bio.PDB import PDBParser, FastMMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
 
+# Suppress PDBConstructionWarnings
 import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
-# Suppress PDBConstructionWarnings
-from geometry import create_list, widest_circle_fit, get_unit_rotation,get_angle,build_ref_axes
+from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_axes
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
 
-def compute(filepath, chain, units_ids, ins_ids=None, o_path=None):
+def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
     """Calculate geometrical parameters for repeats."""
     logging.info(f"Processing file: {filepath}, chain: {chain}")
 
-    units_ids = create_list(units_ids)
+    units_ids = [int(el) for ele in units_ids.split(',') for el in ele.split('_')]
+    units_ids = [units_ids[i:i+2] for i in range(0,len(units_ids),2)]
+
     file_type = Path(filepath).suffix.lower()
 
     if file_type == '.cif':
         parser = FastMMCIFParser(QUIET=True)
-        structure = parser.get_structure('structure', Path(filepath))
     elif file_type == '.pdb':
         parser = PDBParser(QUIET=True)
-        structure = parser.get_structure('structure', Path(filepath))
     else:
         raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
 
+    structure = parser.get_structure('structure', Path(filepath))
 
     # Ensure structure is loaded
     if structure is None:
-        logging.error("Structure could not be initialized. Check file type and content.")
-        return None, None
+        logging.error(f"Structure {file_type} could not be initialized. Check file type and content.")
+        return None
 
     chain_s = structure[0][chain]
 
-    # Handle insertions
-    ins_ids = []
-    if ins_ids:
-        ins_ids = create_list(ins_ids)
-
     # If insertions are present, we make sure to remove them from the structure
-    if len(ins_ids) > 0:
+    if ins_ids is not None:
+        ins_ids = [int(el) for ele in ins_ids.split(',') for el in ele.split('_')]
+        ins_ids = [ins_ids[i:i + 2] for i in range(0, len(ins_ids), 2)]
+
         units = []
         to_remove = []
         for limits in units_ids:
@@ -91,7 +89,7 @@ def compute(filepath, chain, units_ids, ins_ids=None, o_path=None):
 
     # Find the center of the circle
     rot_centers = widest_circle_fit(units_coords, geometric_centers)
-    logging.info("Geometric centers and rotation centers calculated.")
+    logging.debug("Geometric centers and rotation centers calculated.")
 
     # Calculate rotation angle (yaw angle) for each pair of units
     rot_angles = [
@@ -101,7 +99,7 @@ def compute(filepath, chain, units_ids, ins_ids=None, o_path=None):
 
     # Calculate the axes
     pitch_axis, twist_axis, rots = build_ref_axes(geometric_centers, rot_centers)
-    logging.info("Reference axes built for geometry calculations.")
+    logging.debug("Reference axes built for geometry calculations.")
 
     # Calculate rotations and scores
     units_rots, tmscores = [], []
@@ -183,30 +181,23 @@ def compute(filepath, chain, units_ids, ins_ids=None, o_path=None):
     df = pd.DataFrame(data=d)
 
     # Save or display output
-    if o_path is not None:
+    output_path = Path(o_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False, float_format='%.4f')
+    logging.debug(f"Results saved to {output_path}")
 
-        output_path = Path(o_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(output_path, index=False, float_format='%.4f')
-        logging.info(f"Results saved to {output_path}")
-
-        # Save PyMOL data separately for future visualization
+    # Save PyMOL data separately for future visualization
+    if skip_npy is not True:
         pymol_output_path = output_path.with_suffix('.npy')
         np.save(pymol_output_path, {
             "geometric_centers": np.array(geometric_centers),
             "rot_centers": np.array(rot_centers),
             "twist_axis": np.array(twist_axis),
             "pitch_axis": np.array(pitch_axis),
+            "rots": np.array(rot_angles),
             "units_rots": np.array(units_rots),
             "units_coords": np.array(units_coords, dtype="object"),
         })
-        logging.info(f"PyMOL-compatible data saved to {pymol_output_path}")
+        logging.debug(f"PyMOL-compatible data saved to {pymol_output_path}")
 
-    # Optional PyMOL execution if enabled
-    # if draw and pymol_available:
-    #     pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords)
-    #     logger.info("PyMOL visualization generated.")
-    # elif draw:
-    #     logger.warning("PyMOL is not installed. Skipping visualization.")
-
-    return df, stats
+    return df

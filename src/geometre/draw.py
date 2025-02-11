@@ -1,6 +1,5 @@
 import numpy as np
 import logging
-import argparse
 import pymol
 from pymol import cmd
 from sklearn.decomposition import PCA
@@ -8,17 +7,7 @@ from sklearn.decomposition import PCA
 logger = logging.getLogger(__name__)
 
 
-"""
-"geometric_centers": np.array(geometric_centers),
-"rot_centers": np.array(rot_centers),
-"twist_axis": np.array(twist_axis),
-"pitch_axis": np.array(pitch_axis),
-"units_rots": np.array(units_rots),
-"units_coords": np.array(units_coords, dtype="object"),
-"""
-
 def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords):
-
     """Draw geometrical properties using PyMOL."""
     logger.info(f"Drawing geometrical properties for file: {filepath}.")
 
@@ -28,7 +17,7 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     unit_vector = draw_pca.components_[0]
 
     num_centers = len(geometric_centers)
-    pymol.finish_launching()
+    pymol.finish_launching(['pymol', '-q'])
     cmd.load(filepath)
     cmd.hide('all')
 
@@ -99,24 +88,3 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     cmd.color('white', 'yaw_axis')
     cmd.hide('labels')
     cmd.deselect()
-
-
-#Command-line Support
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate PyMOL visualization from saved .npy data.")
-    parser.add_argument("--input", required=True, help="Path to the input PDB file.")
-    parser.add_argument("--data", required=True, help="Path to the .npy file containing geometry data.")
-
-    args = parser.parse_args()
-    
-    # Load saved PyMOL data
-    try:
-        pymol_data = np.load(args.data, allow_pickle=True).item()
-    except Exception as e:
-        logger.error(f"Failed to load PyMOL data: {e}")
-        exit(1)
-
-    pymol_drawing(args.input, **pymol_data)
-
-#run command
-#python draw.py --input my_structure.pdb --data saved_data.npy

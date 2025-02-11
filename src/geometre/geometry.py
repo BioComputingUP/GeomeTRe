@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 def orthogonalize(v, n):
     """Orthogonalize vector v to vector n."""
-    logger.debug(f"Orthogonalizing vector {v} to {n}.")
     n_orth = n / norm(n)
     v_orth = v - np.dot(v, n_orth) * n_orth
     v_orth /= norm(v_orth)
@@ -22,7 +21,6 @@ def orthogonalize(v, n):
 
 def dihedral_angle(v1, v2, n):
     """Calculate the dihedral angle between two vectors in a plane defined by a normal vector."""
-    logger.debug(f"Calculating dihedral angle between {v1} and {v2} with normal {n}.")
     n = n / norm(n)
     v1_to_orth = v1 / norm(v1)
     v2_to_orth = v2 / norm(v2)
@@ -35,31 +33,11 @@ def dihedral_angle(v1, v2, n):
 
 def get_angle(v1, v2):
     """Calculate the angle between two vectors."""
-    logger.debug(f"Calculating angle between vectors {v1} and {v2}.")
     return np.arccos(np.dot(v1, v2) / (norm(v1) * norm(v2)))
-
-
-def create_list(list_indexes):
-    """Used to process the unit_def argument."""
-    logger.debug(f"Creating list from indexes: {list_indexes}.")
-    list_indexes = list_indexes.split(',')
-    list_indexes = list(dict.fromkeys(list_indexes))
-    len_unit = []
-    for item in list_indexes:
-        item = item.strip().split('_')
-        item = (int(item[0]), int(item[1]))
-        if len(len_unit) > 0:
-            if item[0] > len_unit[-1][1]:
-                len_unit.append(item)
-        else:
-            len_unit.append(item)
-    logger.debug(f"Processed list indexes: {len_unit}.")
-    return len_unit
 
 
 def widest_circle(c, data):
     """Find the widest circular crown within units."""
-    logger.debug(f"Finding widest circle for center {c} and data set.")
     nearest = -np.inf
     farthest = np.inf
     for unit in data:
@@ -75,7 +53,6 @@ def widest_circle(c, data):
 
 def widest_circle_fit(units, centers, window=6):
     """Calculate curvature of repeat units"""
-    logger.debug("Starting widest circle fit.")
     num_units = len(units)
     index_list = []
     centers_list = []
@@ -132,7 +109,6 @@ def widest_circle_fit(units, centers, window=6):
 
 def build_ref_axes(geometric_centers, rot_centers):
     """Build reference axes for pitch and twist."""
-    logger.debug("Building reference axes for pitch and twist.")
     num_centers = len(geometric_centers)
     pitch_axis = []
     twist_axis = []
@@ -182,17 +158,14 @@ def build_ref_axes(geometric_centers, rot_centers):
         except Exception as e:
             logger.warning(f"Error constructing rotation matrix at index {i}: {e}")
             rots.append(Rotation.from_matrix(np.eye(3)))
-    logger.debug("Reference axes built.")
     return pitch_axis, twist_axis, rots
 
 
 def get_unit_rotation(coords, seqs, rotations):
     """Align 2 units using CEAlign and return rotation."""
-    logger.debug("Aligning units using CEAlign.")
     coords_1 = coords[0]
     coords_2 = coords[1]
     coords_1 = rotations[0].apply(coords_1)
     coords_2 = rotations[1].apply(coords_2)
     alignment = tmtools.tm_align(coords_1, coords_2, seqs[0], seqs[1])
-    logger.debug("Alignment completed.")
     return alignment

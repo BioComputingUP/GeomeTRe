@@ -1,135 +1,11 @@
-# GeomeTRe documentation
-## Description
+# GeomeTRe 
 
-**GeomeTRe** is a Python package developed to calculate geometrical parameters of repeat proteins. Repeat proteins are characterized by repeated patterns in their structures, and understanding their geometry—such as curvature, twist, and pitch—is essential for studying their stability and classification. **GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
+**GeomeTRe** is a Python package developed to calculate geometrical parameters of repeat proteins. 
+Repeat proteins are characterized by repeated patterns in their structures, and understanding their 
+geometry—such as curvature, twist, and pitch—is essential for studying their stability and classification. 
+**GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and 
+accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
 
-## Installation
-The software can be installed by `pip` and `conda`.
-
-1. Clone the repository :
-
-   `git clone https://github.com/BioComputingUP/GeomeTRe/tree/main`
-
-   `cd GeomeTRe`
-
-2. Create and activate a new conda environment
-
-   `conda create -n geometre`
-
-   `conda activate geometre`
-
-3. Install the package and dependencies:
-
-   `pip install .`
-
-4. It is also possible to install only just `pip`:
-
-   `pip install git+https://github.com/BioComputingUP/GeomeTRe.git`
-
-To use the package as a command-line tool without installation, ensure the paths are set in your environment
-
-`Example:`
-`export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"`
-
-## Usage
-
-Check the installation:
-`pip list | grep GeomeTRe` 
-
-Uninstall package:
-`pip uninstall geometre`
-
-### Command line tool
-
-**For single mode use:**
-
-`geometre single input_path chain units_def -ins insertion -o output_path --draw`
-
-**required arguments:**
-
-- `single`: single file mode
-
-- `input_path`: path to .pdb or .cif file to analyze
-
-- `chain`: chain to analyze
-
-- `units_def`: repeat unit star (s) and end positions (e), written as s1_e1,s2_e2, etc.
-
-- `ins`: insertion start and end positions, written as the units
-
-- `-o`: the output of the program will be saved as a csv file within the specified, existing directory 
-
-  **optional argument:**
-
-- `--draw`: if used, the output will include a PyMOL drawing of the protein structure
-
-Use `-h` option to display help information.
-
- `geometre --help`
-
-Example of single mode usage:
-
-`geometre single /your_dir/2xqh.pdb A 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins 351_372 -o result.csv --draw`
-
-`process.log` file is generated to help track the operations.
-
-**For batch mode use:**
-
-`geometre batch --batch input_path/input_file.tsv --output output_path/output.file.csv --format [pdb or cif] --threads number_of threads --pdb_dir dir_of_pdb_structures`
-
-- `batch`: batch mode
-
-- `input_path`: *input_file.tsv* is a tab separated file with 3 columns: the pdb id+chain (ex:2xqhA), units repeat units' start and end positions, written as s1_e1,s2_e2, etc, and insertion (if available)
-
-- `output`: output_file.csv is the path to the output file in a csv format:
-
-- `format`: format of input file of protein structures (pdb or cif)
-
-- `pdb_dir`: directory of pdb structures
-
-  **optional argument:**
-
-- `threads`: number of jobs to run in parallel (default num_threads = 4)
-
-Example of batch mode usage: 
-
-`geometre batch --batch test.tsv --output results_batch.csv --format pdb --threads 5 --pdb_dir home/user/pdb_dir/`
-
-`process.log` file is generated to help track the operations.
-
-### Python package
-
-To use GeomeTRe directly in a Python script:
-
-`from geometre import GeomeTRe`
-
-`#Initialize with PyMOL drawing enabled`
-`geometre = GeomeTRe(draw_enabled=True)`
-
-``#Process a single file`
-`result = geometre.single(`
-    `pdb_filepath="/home/user/Desktop/test/4u3j.pdb",`
-    `chain="C",`
-    `units_def="324_363,364_408,409_454,455_491,492_533,534_559",`
-    `insertion="",`
-    `output_path="result_single_mode.csv"``
-`)`
-
-## Required Dependencies
-This package requires the following dependencies to run:
-- Python 3.6 or higher
-- Required Python packages (installed automatically via `pip install`):
-  - numpy
-  - pandas
-  - scikit-learn
-  - scikit-image
-  - biopython
-  - tmtools
-  - requests
-- **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to use the `--draw` option.
-    `conda install -c conda-forge pymol-open-source`
-
-## CALCULATION OF PARAMETERS
 
 ### Rotation
 
@@ -141,41 +17,135 @@ Starting with sliding windows of 6 units, projecting them on a plane with PCA, a
 We proceed selecting a sliding pair of consecutive units. Then for each unit of the pair, the program computes two reference axes (twist and pitch axis).
 The pitch axis is the vector connecting the geometric center to the center of rotation relative to that pair. The twist axis is the vector connecting the two barycenters, orthogonalized w.r.t. the two different pitch axes. Then for each pair of units, we rotate them to bring their axes into correspondence to the standard axes (twist to (1,0,0), pitch to (0,1,0)). We use TM-align to find the best rotation that overlaps the first unit to the second one. Then we decompose the rotation of the alignment w.r.t. the reference axes of the first unit to find the pitch, twist and handedness, using Euler angles. 
 
-## Outputs
 
- - single mode has two outputs: a table with the computed parameters, and a pymol drawing of the geometry of the molecule.
 
- 	csv table content :
+## Installation
+The software can be installed with `pip` or you can just clone it and use it. 
+
+In order to enable Pymol visualization (optional), we recommend to create a new environment and install the Pymol 
+bundle first and after all the other dependencies. 
+
+Installation with pip
+```bash
+pip install git+https://github.com/BioComputingUP/GeomeTRe.git
+```
+
+Installation with Conda and Pymol
+```bash
+# Create and activate a new conda environment
+conda create -n geometre
+conda activate geometre
+
+# Install Pymol
+conda install -c conda-forge -c schrodinger pymol-bundle
+
+# Clone the GeomeTRe repository
+git clone https://github.com/BioComputingUP/GeomeTRe
+
+# Install the package and dependencies
+cd GeomeTRe
+pip install .
+
+# Set path to the module in your environment
+export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"
+```
+
+## Dependencies
+The following dependencies are required to run:
+- Python 3.6 or higher
+- Packages (installed automatically via `pip install`):
+  - numpy
+  - pandas
+  - scikit-learn
+  - scikit-image
+  - biopython
+  - tmtools
+  - requests
+  
+**PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to enable visualization.
+`conda install -c conda-forge pymol-open-source`
+
+## Usage
+GeomeTRe can be used in single mode to process a single structure, in batch mode to process an
+entire dataset and it can be executed for just rendering its results in Pymol. 
+
+Single structure execution 
+```bash
+# Single mode with pip installation - pdb id, chain, output file, units, insertions (optional)
+geometre single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
+
+# Single mode without pip. Same as above but invoking main.py directly
+python3 main.py single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
+```
+
+Visualize output in Pymol 
+```bash
+geometre draw 2xqh.pdb result.npy
+
+# Visualize without pip
+python3 main.py draw 2xqh.pdb result.npy
+```
+
+Batch execution 
+```bash
+# Don't download structures. It assumes paths to input files are provided in the first column of the TSV file (see format section below)
+geometre draw test.tsv result_batch.csv
+
+# Download structures. It extract PDB IDs from the first column of the TSV file and download them in the pdb_dir folder.
+python3 main.py draw 2xqh.pdb result.npy -pdb_dir pdbs/
+```
+
+
+### Library
+
+GeomeTRe can be used as module directly in a Python script:
+
+```python
+from geometre.process import compute
+
+df = compute(filepath=input_file, 
+			 chain=chain, 
+			 units_ids='161_175,176_189,190_203,204_217', 
+			 o_path=out_file, 
+			 ins_ids='351_372')
+```
+
+
+## Formats 
+
+### Output single mode
+CSV table with the computed parameters (.csv)
  	- pdb id: the PDB id of the molecule
  	- chain: chain of PDB structure
  	- unit_start: start position of repeat unit
  	- unit_end: end position of repeat unit
  	- Curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
- 	    - Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
- 	    - Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis
- 	    - Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
- 	    - Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
- 	    - TM-score: the tm-score of the structural alignment
- 	    - Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
- 	      means a bad performance on the algorithm for that unit pair.
- Additionally, last 2 rows are showing mean and standard deviations of each parameter. The first row is all zeros, since the rows refer to the unit and the unit before it.
+	- Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
+	- Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis
+	- Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
+	- Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
+	- TM-score: the tm-score of the structural alignment
+	- Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
+	  means a bad performance on the algorithm for that unit pair.
+ 	- Additionally, the last 2 rows are showing mean and standard deviations of each parameter. The first column is all zeros, since the rows refer to the unit and the unit before it.
 
+Pymol parameters for drawing (.npy)
 
-	PyMOL drawing contains the following axis:
-	    - In red, twist axis of each repeat unit(RU) which is always parallel to the longest dimension of the protein
-	    - In orange, twist axis of each RU
-	    - In white, yaw axis of each RU
+### Pymol drawing
+PyMOL drawing contains the following axis:
+	- In red, twist axis of each repeat unit(RU) which is always parallel to the longest dimension of the protein
+	- In orange, twist axis of each RU
+	- In white, yaw axis of each RU
 The example of PyMOL drawing in png format with explanation text is below
 
 ![Example of PyMOL drawing](/example_2xqh.png)
 
-batch mode output:
+### Output batch mode
 
 - pdb id: the PDB id of the molecule
-
 - chain: chain of PDB structure
-- curv_mean: mean of curvature
-- curv_std: standard deviation of curvature
+- curvature_mean: mean of curvature
+- curvature_std: standard deviation of curvature
 - twist_mean: mean of twist
 - twist_std: standard deviation of twist
 - twist_sign_mean: mean of twist handedness
@@ -184,8 +154,8 @@ batch mode output:
 - pitch_std: standard deviation of pitch
 - pitch_sign_mean: mean of pitch handedness
 - pitch_sign_std: standard deviation of pitch handedness
-- tmscores_mean: mean of tmtool score
-- tmscores_std: standard deviation of tmtool score
+- TM-score_mean: mean of tmtool score
+- TM-score_std: standard deviation of tmtool score
 - yaw_mean: mean of yaw
 - yaw_std: standard deviation of yaw
 
