@@ -194,7 +194,7 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
             "rot_centers": np.array(rot_centers),
             "twist_axis": np.array(twist_axis),
             "pitch_axis": np.array(pitch_axis),
-            "rots": np.array(rot_angles),
+            "rots": np.array(rots),
             "units_rots": np.array(units_rots),
             "units_coords": np.array(units_coords, dtype="object"),
         })

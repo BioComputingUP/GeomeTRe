@@ -20,6 +20,7 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     pymol.finish_launching(['pymol', '-q'])
     cmd.load(filepath)
     cmd.hide('all')
+    cmd.show('cartoon')
 
     # Place pseudoatoms to draw distances and angles
     for i in range(num_centers):
