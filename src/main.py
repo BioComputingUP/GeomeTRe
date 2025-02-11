@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 from Bio.PDB import PDBList
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from geometre.process import compute
 
@@ -37,7 +38,7 @@ def command_line():
     return arg_parser.parse_args()
 
 
-def batch_compute(tsv_path, pdb_dir, output_path, num_threads=4):
+def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
     df_input = pd.read_csv(tsv_path, sep="\t",
                            dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
 
@@ -47,20 +48,19 @@ def batch_compute(tsv_path, pdb_dir, output_path, num_threads=4):
         pdbl.download_pdb_files([ele.split("/")[-1][:4] for ele in df_input['pdb_file'].unique()], pdir=pdb_dir)  # Download mmCIF by default
 
     # Iterate over all structures
-    # TODO implement multithread
     df_list = []
-    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'pitch', 'TM-score', 'yaw']
-    for i, row in df_input.iterrows():
-        structure_file = row["pdb_file"] if pdb_dir is None else "{}/{}.cif".format(pdb_dir, row["pdb_file"].split("/")[-1][:4])
-        df_ = compute(filepath=structure_file,
-                       chain= row["chain"],
-                       units_ids=row["units"],
-                       o_path=output_path,
-                       ins_ids=None if pd.isnull(row['insertion']) else row["insertion"],
-                       skip_npy=True)
+    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'pitch', 'tmscore', 'yaw']
 
-        # Combine mean and std on columns
-        if not df_.empty:
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        fs = {}
+        for i, row in df_input.iterrows():
+            structure_file = row["pdb_file"] if pdb_dir is None else "{}/{}.cif".format(pdb_dir, row["pdb_file"].split("/")[-1][:4])
+            ins_ids = None if pd.isnull(row['insertion']) else row["insertion"]
+
+            fs[executor.submit(compute, structure_file, row["chain"], row["units"], output_path, ins_ids, True)] = i
+
+        for future in as_completed(fs):
+            df_ = future.result()
             df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
                            df_.loc[df_['unit_start'] == 'mean', columns],
                            on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         batch_compute(args.filepath,
                       args.pdb_dir,
                       args.out_file,
-                      num_threads=args.threads)
+                      threads=args.threads)
         # logger.info(f"Batch mode results saved to: {result_path}")
 
     # Load saved PyMOL data and launch pymol

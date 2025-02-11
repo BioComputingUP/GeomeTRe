@@ -6,11 +6,13 @@ from Bio.PDB import PDBParser, FastMMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
 
+from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_axes
+
 # Suppress PDBConstructionWarnings
 import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
-from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_axes
+
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
@@ -31,11 +33,17 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
     else:
         raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
 
-    structure = parser.get_structure('structure', Path(filepath))
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', PDBConstructionWarning)
+            structure = parser.get_structure('structure', Path(filepath))
+    except:
+        logging.error(f"Structure parse error {file_type}")
+        return None
 
     # Ensure structure is loaded
     if structure is None:
-        logging.error(f"Structure {file_type} could not be initialized. Check file type and content.")
+        logging.error(f"Empty structure error {file_type}")
         return None
 
     chain_s = structure[0][chain]
@@ -175,7 +183,7 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
         'twist_hand': twist_handednesslist,
         'pitch': pitchlist,
         'pitch_hand': pitch_handednesslist,
-        'TM-score': tmscores,
+        'tmscore': tmscores,
         'yaw': yawlist
     }
     df = pd.DataFrame(data=d)

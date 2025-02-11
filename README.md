@@ -6,6 +6,10 @@ geometry—such as curvature, twist, and pitch—is essential for studying their
 **GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and 
 accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
 
+It takes about 2 minutes to calculate 100 structures with 10 threads and a SSD disk, excluding downloading structures time. 
+
+
+## Algorithm
 
 ### Rotation
 
