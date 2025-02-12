@@ -1,5 +1,8 @@
+import sys
 from argparse import ArgumentParser
 import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from Bio.PDB import PDBList
@@ -26,7 +29,7 @@ def command_line():
     batch_parser.add_argument('out_file', help='Output CSV file for results')
     batch_parser.add_argument('-pdb_dir', help='PDB files directory for download. '
                                                          'If not provided assume file path in the input TSV')
-    batch_parser.add_argument('-threads', type=int, default=4,
+    batch_parser.add_argument('-threads', type=int, default=1,
                               help='Number of threads for parallel processing')
 
     drawing_parser = subparsers.add_parser('pymol', help='Generate PyMOL visualization from saved .npy data.')
@@ -57,14 +60,21 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
             structure_file = row["pdb_file"] if pdb_dir is None else "{}/{}.cif".format(pdb_dir, row["pdb_file"].split("/")[-1][:4])
             ins_ids = None if pd.isnull(row['insertion']) else row["insertion"]
 
-            fs[executor.submit(compute, structure_file, row["chain"], row["units"], output_path, ins_ids, True)] = i
+            fs[executor.submit(compute, structure_file, row["chain"], row["units"], ins_ids)] = structure_file
 
         for future in as_completed(fs):
-            df_ = future.result()
-            df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
-                           df_.loc[df_['unit_start'] == 'mean', columns],
-                           on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
-            df_list.append(df_)
+            try:
+                df_, obj_ = future.result()
+            except Exception as exc:
+                logger.error(f'Execution error {fs[future]}')
+            else:
+                if df_ is not None and not df_.empty:
+                    df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
+                                   df_.loc[df_['unit_start'] == 'mean', columns],
+                                   on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
+                    df_list.append(df_)
+                else:
+                    logger.info(f'Empty output {fs[future]}')
 
     pd.concat(df_list).to_csv(output_path, index=False, sep=",")
     return
@@ -75,23 +85,41 @@ if __name__ == '__main__':
     args = command_line()
 
     # Set up logging before processing
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s',
-                        handlers=[logging.StreamHandler()])
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    # Add stdout handler
+    h = logging.StreamHandler()
+    h.setFormatter(fmt)
+    logger.addHandler(h)
 
     # Add file handler
-    logger = logging.getLogger(__name__)
     if args.l:
-        logger.addHandler(logging.FileHandler(args.l, mode="w"),)
+        f = logging.FileHandler(args.l, mode='w')
+        f.setFormatter(fmt)
+        logger.addHandler(f)
+
     logger.debug("Process started.")
 
     # Single mode execution
     if args.mode == 'single':
-        df = compute(filepath=args.filepath,
+        df, obj = compute(filepath=args.filepath,
                      chain=args.chain,
                      units_ids=args.unit_def,
-                     o_path=args.out_file,
                      ins_ids=args.ins_def)
+
+        # Save or display output
+        if df is not None:
+            output_path = Path(args.out_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(output_path, index=False, float_format='%.4f')
+            logger.debug(f"Results saved to {output_path}")
+
+            # Save PyMOL data separately for future visualization
+            pymol_output_path = output_path.with_suffix('.npy')
+            np.save(pymol_output_path, obj)
+            logger.debug(f"PyMOL-compatible data saved to {pymol_output_path}")
 
         # logger.info(f"Single mode results saved to: {result_path}")
 

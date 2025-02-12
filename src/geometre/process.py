@@ -12,14 +12,12 @@ from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_
 import warnings
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
-
-
 # Use the shared logger
 logger = logging.getLogger(__name__)
 
-def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
+def compute(filepath, chain, units_ids, ins_ids=None):
     """Calculate geometrical parameters for repeats."""
-    logging.info(f"Processing file: {filepath}, chain: {chain}")
+    logger.info(f"Processing file: {filepath}, chain: {chain}")
 
     units_ids = [int(el) for ele in units_ids.split(',') for el in ele.split('_')]
     units_ids = [units_ids[i:i+2] for i in range(0,len(units_ids),2)]
@@ -38,13 +36,13 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
             warnings.simplefilter('ignore', PDBConstructionWarning)
             structure = parser.get_structure('structure', Path(filepath))
     except:
-        logging.error(f"Structure parse error {file_type}")
-        return None
+        logger.error(f"Structure parse error {filepath}")
+        return None, None
 
     # Ensure structure is loaded
     if structure is None:
-        logging.error(f"Empty structure error {file_type}")
-        return None
+        logger.error(f"Empty structure error {filepath}")
+        return None, None
 
     chain_s = structure[0][chain]
 
@@ -97,7 +95,7 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
 
     # Find the center of the circle
     rot_centers = widest_circle_fit(units_coords, geometric_centers)
-    logging.debug("Geometric centers and rotation centers calculated.")
+    logger.debug("Geometric centers and rotation centers calculated.")
 
     # Calculate rotation angle (yaw angle) for each pair of units
     rot_angles = [
@@ -107,7 +105,7 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
 
     # Calculate the axes
     pitch_axis, twist_axis, rots = build_ref_axes(geometric_centers, rot_centers)
-    logging.debug("Reference axes built for geometry calculations.")
+    logger.debug("Reference axes built for geometry calculations.")
 
     # Calculate rotations and scores
     units_rots, tmscores = [], []
@@ -173,8 +171,16 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
     pdbs = [pdb for _ in range(num_centers + 2)]
     chains = [chain for _ in range(num_centers + 2)]
 
-    d = {
-        'pdb_id': pdbs,
+    obj = {"geometric_centers": np.array(geometric_centers),
+        "rot_centers": np.array(rot_centers),
+        "twist_axis": np.array(twist_axis),
+        "pitch_axis": np.array(pitch_axis),
+        "rots": np.array(rots),
+        "units_rots": np.array(units_rots),
+        "units_coords": np.array(units_coords, dtype="object"),
+    }
+
+    df = pd.DataFrame(data={'pdb_id': pdbs,
         'chain': chains,
         'unit_start': starts,
         'unit_end': ends,
@@ -185,27 +191,6 @@ def compute(filepath, chain, units_ids, o_path, ins_ids=None, skip_npy=None):
         'pitch_hand': pitch_handednesslist,
         'tmscore': tmscores,
         'yaw': yawlist
-    }
-    df = pd.DataFrame(data=d)
+    })
 
-    # Save or display output
-    output_path = Path(o_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False, float_format='%.4f')
-    logging.debug(f"Results saved to {output_path}")
-
-    # Save PyMOL data separately for future visualization
-    if skip_npy is not True:
-        pymol_output_path = output_path.with_suffix('.npy')
-        np.save(pymol_output_path, {
-            "geometric_centers": np.array(geometric_centers),
-            "rot_centers": np.array(rot_centers),
-            "twist_axis": np.array(twist_axis),
-            "pitch_axis": np.array(pitch_axis),
-            "rots": np.array(rots),
-            "units_rots": np.array(units_rots),
-            "units_coords": np.array(units_coords, dtype="object"),
-        })
-        logging.debug(f"PyMOL-compatible data saved to {pymol_output_path}")
-
-    return df
+    return df, obj
