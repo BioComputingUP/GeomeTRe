@@ -10,7 +10,7 @@ from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_
 
 # Suppress PDBConstructionWarnings
 import warnings
-from Bio.PDB.PDBExceptions import PDBConstructionWarning
+warnings.filterwarnings('ignore')
 
 # Use the shared logger
 logger = logging.getLogger(__name__)
@@ -32,9 +32,7 @@ def compute(filepath, chain, units_ids, ins_ids=None):
         raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
 
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', PDBConstructionWarning)
-            structure = parser.get_structure('structure', Path(filepath))
+        structure = parser.get_structure('structure', Path(filepath))
     except:
         logger.error(f"Structure parse error {filepath}")
         return None, None
@@ -162,7 +160,7 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     num_centers = len(rot_angles) - 2
     starts = [unit[0] for unit in units_ids]
     starts.append('mean')
-    starts.append('std deviation')
+    starts.append('std')
     ends = [unit[1] for unit in units_ids]
     ends.append('-')
     ends.append('-')

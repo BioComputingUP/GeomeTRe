@@ -52,7 +52,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
 
     # Iterate over all structures
     df_list = []
-    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'pitch', 'tmscore', 'yaw']
+    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'twist_hand', 'pitch', 'pitch_hand', 'tmscore', 'yaw']
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         fs = {}
@@ -70,7 +70,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
             else:
                 if df_ is not None and not df_.empty:
                     df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
-                                   df_.loc[df_['unit_start'] == 'mean', columns],
+                                   df_.loc[df_['unit_start'] == 'std', columns],
                                    on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
                     df_list.append(df_)
                 else:
