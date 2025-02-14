@@ -162,7 +162,7 @@ def build_ref_axes(geometric_centers, rot_centers):
 
 
 def get_unit_rotation(coords, seqs, rotations):
-    """Align 2 units using CEAlign and return rotation."""
+    """Align 2 units using TM-align and return rotation."""
     coords_1 = coords[0]
     coords_2 = coords[1]
     coords_1 = rotations[0].apply(coords_1)

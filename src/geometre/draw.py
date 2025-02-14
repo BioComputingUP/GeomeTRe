@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 logger = logging.getLogger(__name__)
 
 
-def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords):
+def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords, units_ids, chain):
     """Draw geometrical properties using PyMOL."""
     logger.info(f"Drawing geometrical properties for file: {filepath}.")
 
@@ -20,9 +20,11 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     pymol.finish_launching(['pymol', '-q'])
     cmd.load(filepath)
     cmd.hide('all')
-    cmd.show('cartoon')
 
 
+    # Color the units
+    for i, pos in enumerate(units_ids):
+        cmd.color("red" if i%2 == 0 else "blue", f"resi {pos[0]}-{pos[1]} and chain {chain}")
 
     # Place pseudoatoms to draw distances and angles
     for i in range(num_centers):
@@ -42,13 +44,19 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     # for i in range(len(rot_centers)):
     #     cmd.pseudoatom('rot_centers', pos=tuple(rot_centers[i]))
 
-    cmd.orient('geo_centers')
+    # Orient the repeated region
+    region_sele = f'resi {units_ids[0][0]}-{units_ids[-1][1]} and chain {chain}'
+    cmd.orient(region_sele)
+    cmd.show('cartoon', region_sele)
 
     # Draw rotation angles and protein geometry
     for i in range(num_centers - 1):
-        cmd.pseudoatom('twist_ref', pos=tuple(geometric_centers[i] + 9 * twist_axis[i][0]))
-        cmd.pseudoatom('pitch_ref', pos=tuple(geometric_centers[i] + 9 * pitch_axis[i][0]))
-        cmd.pseudoatom('curvature_ref', pos=tuple(geometric_centers[i] + 9 * np.cross(pitch_axis[i][0], twist_axis[i][0])))
+        # Length of the vectors
+        l = np.sqrt(np.sum((geometric_centers[i+1] - geometric_centers[i])**2, axis=0)) * 1.5
+
+        cmd.pseudoatom('twist_ref', pos=tuple(geometric_centers[i] + l * twist_axis[i][0]))
+        cmd.pseudoatom('pitch_ref', pos=tuple(geometric_centers[i] + l * pitch_axis[i][0]))
+        cmd.pseudoatom('curvature_ref', pos=tuple(geometric_centers[i] + l * np.cross(pitch_axis[i][0], twist_axis[i][0])))
         if i > 0:
             cmd.select('point1', selection='model geo_centers and name PS{}'.format(str(i + 1)))
             # cmd.select('point2', selection='model geo_centers and name PS{}'.format(str(i + 2)))

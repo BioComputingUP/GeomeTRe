@@ -96,10 +96,8 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     logger.debug("Geometric centers and rotation centers calculated.")
 
     # Calculate rotation angle (yaw angle) for each pair of units
-    rot_angles = [
-        get_angle(geometric_centers[i] - rot_centers[i], geometric_centers[i + 1] - rot_centers[i])
-        for i in range(num_centers - 1)
-    ]
+    rot_angles = [get_angle(geometric_centers[i] - rot_centers[i], geometric_centers[i + 1] - rot_centers[i])
+        for i in range(num_centers - 1)]
 
     # Calculate the axes
     pitch_axis, twist_axis, rots = build_ref_axes(geometric_centers, rot_centers)
@@ -169,15 +167,6 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     pdbs = [pdb for _ in range(num_centers + 2)]
     chains = [chain for _ in range(num_centers + 2)]
 
-    obj = {"geometric_centers": np.array(geometric_centers),
-        "rot_centers": np.array(rot_centers),
-        "twist_axis": np.array(twist_axis),
-        "pitch_axis": np.array(pitch_axis),
-        "rots": np.array(rots),
-        "units_rots": np.array(units_rots),
-        "units_coords": np.array(units_coords, dtype="object"),
-    }
-
     df = pd.DataFrame(data={'pdb_id': pdbs,
         'chain': chains,
         'unit_start': starts,
@@ -190,5 +179,18 @@ def compute(filepath, chain, units_ids, ins_ids=None):
         'tmscore': tmscores,
         'yaw': yawlist
     })
+
+    # Pymol drawing
+    obj = {
+        "geometric_centers": np.array(geometric_centers),
+        "rot_centers": np.array(rot_centers),
+        "twist_axis": np.array(twist_axis),
+        "pitch_axis": np.array(pitch_axis),
+        "rots": np.array(rots),
+        "units_rots": np.array(units_rots),
+        "units_coords": np.array(units_coords, dtype="object"),
+        "units_ids": units_ids,
+        "chain": chain
+    }
 
     return df, obj
