@@ -1,4 +1,3 @@
-import sys
 from argparse import ArgumentParser
 import logging
 from pathlib import Path
@@ -80,11 +79,12 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
     return
 
 
-if __name__ == '__main__':
-
+def main():
+    """CLI entry point for geometre"""
     args = command_line()
 
     # Set up logging before processing
+    global logger
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -137,5 +137,5 @@ if __name__ == '__main__':
         pymol_data = np.load(args.npy_filepath, allow_pickle=True).item()
         pymol_drawing(args.pdb_filepath, **pymol_data)
 
-
-
+if __name__ == "__main__":
+    main()
