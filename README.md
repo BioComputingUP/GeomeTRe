@@ -6,7 +6,7 @@ geometry—such as curvature, twist, and pitch—is essential for studying their
 **GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and 
 accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
 
-It takes about 2 minutes to calculate 100 structures with 10 threads and a SSD disk, excluding downloading structures time. 
+It takes about 2 minutes to calculate 100 structures with 10 threads and a SSD disk, excluding time to download structures. 
 
 
 ## Algorithm
@@ -44,11 +44,7 @@ conda activate geometre
 conda install -c conda-forge -c schrodinger pymol-bundle
 
 # Clone the GeomeTRe repository
-git clone https://github.com/BioComputingUP/GeomeTRe
-
-# Install the package and dependencies
-cd GeomeTRe
-pip install .
+git clone https://github.com/BioComputingUP/GeomeTRe.git
 
 # Set path to the module in your environment
 export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"
@@ -84,7 +80,7 @@ python3 main.py single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218
 
 Visualize output in Pymol 
 ```bash
-geometre draw 2xqh.pdb result.npy
+geometre pymol 2xqh.pdb result.npy
 
 # Visualize without pip
 python3 main.py draw 2xqh.pdb result.npy
@@ -93,10 +89,10 @@ python3 main.py draw 2xqh.pdb result.npy
 Batch execution 
 ```bash
 # Don't download structures. It assumes paths to input files are provided in the first column of the TSV file (see format section below)
-geometre draw test.tsv result_batch.csv
+geometre batch test.tsv result_batch.csv
 
 # Download structures. It extract PDB IDs from the first column of the TSV file and download them in the pdb_dir folder.
-python3 main.py draw 2xqh.pdb result.npy -pdb_dir pdbs/
+python3 main.py batch 2xqh.pdb result.npy -pdb_dir pdbs/
 ```
 
 
@@ -138,8 +134,8 @@ Pymol parameters for drawing (.npy)
 ### Pymol drawing
 PyMOL drawing contains the following axis:
 	- In red, twist axis of each repeat unit(RU) which is always parallel to the longest dimension of the protein
-	- In orange, twist axis of each RU
-	- In white, yaw axis of each RU
+	- In green, pitch axis of each RU
+	- In blue, yaw(curvature) axis of each RU
 The example of PyMOL drawing in png format with explanation text is below
 
 ![Example of PyMOL drawing](/example_2xqh.png)
