@@ -1,4 +1,3 @@
-import sys
 from argparse import ArgumentParser
 import logging
 from pathlib import Path
@@ -52,7 +51,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
 
     # Iterate over all structures
     df_list = []
-    columns = ['pdb_id', 'chain', 'curvature', 'twist', 'twist_hand', 'pitch', 'pitch_hand', 'tmscore', 'yaw']
+    columns = ['pdb_id', 'chain', 'region_start', 'region_end', 'curvature', 'twist', 'twist_hand', 'pitch', 'pitch_hand', 'tmscore', 'yaw']
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         fs = {}
@@ -69,6 +68,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
                 logger.error(f'Execution error {fs[future]}')
             else:
                 if df_ is not None and not df_.empty:
+                    df_[['region_start', 'region_end']] = [df_.iloc[0]['unit_start'], df_.iloc[-3]['unit_end']]
                     df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
                                    df_.loc[df_['unit_start'] == 'std', columns],
                                    on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
@@ -80,11 +80,12 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
     return
 
 
-if __name__ == '__main__':
-
+def main():
+    """CLI entry point for geometre"""
     args = command_line()
 
     # Set up logging before processing
+    global logger
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -137,5 +138,5 @@ if __name__ == '__main__':
         pymol_data = np.load(args.npy_filepath, allow_pickle=True).item()
         pymol_drawing(args.pdb_filepath, **pymol_data)
 
-
-
+if __name__ == "__main__":
+    main()

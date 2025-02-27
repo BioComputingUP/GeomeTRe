@@ -6,7 +6,7 @@ from Bio.PDB import PDBParser, FastMMCIFParser, Polypeptide
 from Bio.SeqUtils import seq1
 from scipy.spatial.transform import Rotation
 
-from geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_axes
+from geometre.geometry import widest_circle_fit, get_unit_rotation, get_angle, build_ref_axes
 
 # Suppress PDBConstructionWarnings
 import warnings

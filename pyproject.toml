@@ -1,18 +1,10 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "geometre"
-version = "0.1.0"
-description = "Calculate repeat protein geometrical properties"
-readme = "README.md"
-authors = [
-    {name = "Zarifa Osmanli", email = "zerifaosmanli@gmail.com"},
-    {name = "Elisa Ferrero", email = "ferreroelisa579@gmail.com"},
-    {name = "Damiano Piovesan", email = "damiano.piovesan@unipd.it"}
-]
-license = {text = "GNU General Public License v3.0"}
+version = "1.0"
 dependencies = [
     "numpy",
     "pandas",
@@ -23,17 +15,24 @@ dependencies = [
     "scikit-image",
     "requests"
 ]
-requires-python = ">=3.6"
-
+requires-python = ">=3.9"
+authors = [
+    {name = "Zarifa Osmanli", email = "zerifaosmanli@gmail.com"},
+    {name = "Elisa Ferrero", email = "ferreroelisa579@gmail.com"},
+    {name = "Damiano Piovesan", email = "damiano.piovesan@unipd.it"}
+]
+description = "Calculate repeat protein geometrical properties"
+readme = "README.md"
+license = {text = "GNU General Public License v3.0"}
 [project.optional-dependencies]
 draw = ["pymol"]
 
+[project.urls]
+Repository = "https://github.com/BioComputingUP/GeomeTRe.git"
+
 [project.scripts]
-geometre = "main:main"  
+geometre = "geometre.__main__:main"
 
 [tool.setuptools]
-packages = ["geometre"]
-
-[tool.setuptools.package-dir]
-"" = "src"
-
+packages = { find = { where = ["src"] } }
+include-package-data = true

@@ -100,8 +100,8 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     # cmd.color('red', 'dist_1')
     # cmd.color('red', 'dist_2')
     cmd.color('red', 'twist_axis')
-    cmd.color('orange', 'pitch_axis')
-    cmd.color('white', 'curvature_axis')
+    cmd.color('green', 'pitch_axis')
+    cmd.color('blue', 'curvature_axis')
     cmd.hide('labels')
 
 
