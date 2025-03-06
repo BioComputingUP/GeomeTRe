@@ -52,7 +52,7 @@ export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"
 
 ## Dependencies
 The following dependencies are required to run:
-- Python 3.6 or higher
+- Python 3.9 or higher
 - Packages (installed automatically via `pip install`):
   - numpy
   - pandas
@@ -89,7 +89,10 @@ python3 main.py draw 2xqh.pdb result.npy
 Batch execution 
 ```bash
 # Don't download structures. It assumes paths to input files are provided in the first column of the TSV file (see format section below)
-geometre batch test.tsv result_batch.csv
+geometre batch test.tsv result_batch.csv 
+
+#Otherwise
+geometre btach test.tsv result_batch.csv -pdb_dir pdbs/
 
 # Download structures. It extract PDB IDs from the first column of the TSV file and download them in the pdb_dir folder.
 python3 main.py batch 2xqh.pdb result.npy -pdb_dir pdbs/
@@ -115,17 +118,17 @@ df = compute(filepath=input_file,
 
 ### Output single mode
 CSV table with the computed parameters (.csv)
- 	- pdb id: the PDB id of the molecule
+ 	- pdb_id: the PDB id of the molecule
  	- chain: chain of PDB structure
  	- unit_start: start position of repeat unit
  	- unit_end: end position of repeat unit
- 	- Curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
-	- Twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
-	- Twisthandedness: computed as the handedness of the rotation, w.r.t. the twist axis
-	- Pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
-	- Pitchhandedness: computed as the handedness of the rotation, w.r.t. the pitch axis.
-	- TM-score: the tm-score of the structural alignment
-	- Yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
+ 	- curvature: the curvature, computed as the angle between the vectors connecting the rotation center to two consecutive units
+	- twist: the twist, computed as the component of the rotation that aligns the two units w.r.t. the twist axis
+	- twist_hand: computed as the handedness of the rotation, w.r.t. the twist axis
+	- pitch: the pitch, computed the same way as the twist, but orthogonalizing w.r.t the pitch axis
+	- pitch_hand: computed as the handedness of the rotation, w.r.t. the pitch axis.
+	- tm-score: the tm-score of the structural alignment
+	- yaw: the residual yaw rotation: in a perfect structure, this is 0, as we already compensate for the yaw when we align the axes of the two units to the standard reference axes. A high yaw 
 	  means a bad performance on the algorithm for that unit pair.
  	- Additionally, the last 2 rows are showing mean and standard deviations of each parameter. The first column is all zeros, since the rows refer to the unit and the unit before it.
 
@@ -148,18 +151,18 @@ The example of PyMOL drawing in png format with explanation text is below
 - curvature_std: standard deviation of curvature
 - twist_mean: mean of twist
 - twist_std: standard deviation of twist
-- twist_sign_mean: mean of twist handedness
-- twist_sign_std: standard deviation of twist handedness
+- twist_hand_mean: mean of twist handedness
+- twist_hand_std: standard deviation of twist handedness
 - pitch_mean: mean of pitch
 - pitch_std: standard deviation of pitch
-- pitch_sign_mean: mean of pitch handedness
-- pitch_sign_std: standard deviation of pitch handedness
-- TM-score_mean: mean of tmtool score
-- TM-score_std: standard deviation of tmtool score
+- pitch_hand_mean: mean of pitch handedness
+- pitch_hand_std: standard deviation of pitch handedness
+- tm-score_mean: mean of tmtool score
+- tm-score_std: standard deviation of tmtool score
 - yaw_mean: mean of yaw
 - yaw_std: standard deviation of yaw
 
 
-### input_repeatsdb_v4_filtered.tsv
+### input_repeatsdb_v4.tsv
 tsv file containining the proteins in the RepeatsDB database (version 4) for batch mode calculations.
 
