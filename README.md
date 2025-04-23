@@ -1,26 +1,24 @@
 # GeomeTRe 
 
-**GeomeTRe** is a Python package developed to calculate geometrical parameters of repeat proteins. 
-Repeat proteins are characterized by repeated patterns in their structures, and understanding their 
-geometry—such as curvature, twist, and pitch—is essential for studying their stability and classification. 
-**GeomeTRe** uses data from RepeatsDB and PDB structures, employing method of circular fitting to provide fast and 
-accurate analysis of these parameters, offering a comprehensive solution for structured tandem repeat proteins -**STRPs**.
+GeomeTRe calculates geometrical properties of tandem repeat proteins. 
+It requires a protein structure and the start and end positions 
+of each repeat unit (with optional insertion positions) as input. 
+If insertion positions are provided, those segments are excluded to improve accuracy. 
 
-It takes about 2 minutes to calculate 100 structures with 10 threads and a SSD disk, excluding time to download structures. 
+For most known STRPs, repeat unit and insertion coordinates are available 
+from the manually curated [RepeatsDB](https://repeatsdb.org/) database.
 
+It takes about 2 minutes to calculate 100 structures with 10 threads and a SSD disk.
 
 ## Algorithm
+The algorithm computes the three Tait-Bryan angles - yaw, pitch, and roll - 
+by simulating an airplane traversing the protein from its N-terminus to C-terminus. 
+In this analogy, the airplane points to the centroid of the next repeat unit,
+and the angles correspond to the maneuvers required to move from one unit to the next. 
 
-### Rotation
-
-The tool first computes the rotation between units in the following way:
-Starting with sliding windows of 6 units, projecting them on a plane with PCA, and finding the rotation center as the center of the widest circular crown containining all of them. Then reverse the PCA transformation to get the center of rotation in the 3D space. After for each pair of units, it finds a center of rotation for that pair as the center of rotation found by a window including that pair the corresponded to the largest crown.
-
-### Twist, pitch and handedness
-
-We proceed selecting a sliding pair of consecutive units. Then for each unit of the pair, the program computes two reference axes (twist and pitch axis).
-The pitch axis is the vector connecting the geometric center to the center of rotation relative to that pair. The twist axis is the vector connecting the two barycenters, orthogonalized w.r.t. the two different pitch axes. Then for each pair of units, we rotate them to bring their axes into correspondence to the standard axes (twist to (1,0,0), pitch to (0,1,0)). We use TM-align to find the best rotation that overlaps the first unit to the second one. Then we decompose the rotation of the alignment w.r.t. the reference axes of the first unit to find the pitch, twist and handedness, using Euler angles. 
-
+The algorithm also determines handedness, defined by the roll direction of movement 
+(clockwise/right-handed or anticlockwise/left-handed), and the sign of the pitch 
+(positive for upward, negative for downward movement).
 
 
 ## Installation
@@ -47,7 +45,7 @@ conda install -c conda-forge -c schrodinger pymol-bundle
 git clone https://github.com/BioComputingUP/GeomeTRe.git
 
 # Set path to the module in your environment
-export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/geometre"
+export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/"
 ```
 
 ## Dependencies
@@ -60,7 +58,6 @@ The following dependencies are required to run:
   - scikit-image
   - biopython
   - tmtools
-  - requests
   
 **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to enable visualization.
 `conda install -c conda-forge pymol-open-source`
@@ -71,31 +68,33 @@ entire dataset and it can be executed for just rendering its results in Pymol.
 
 Single structure execution 
 ```bash
+# Single mode without pip. Same as above but invoking main.py directly
+python3 __main__.py single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
+
 # Single mode with pip installation - pdb id, chain, output file, units, insertions (optional)
 geometre single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
-
-# Single mode without pip. Same as above but invoking main.py directly
-python3 main.py single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
 ```
 
 Visualize output in Pymol 
 ```bash
-geometre pymol 2xqh.pdb result.npy
-
 # Visualize without pip
-python3 main.py draw 2xqh.pdb result.npy
+python3 __main__.py draw 2xqh.pdb result.npy
+
+# Visualize with pip installation
+geometre pymol 2xqh.pdb result.npy
 ```
 
 Batch execution 
 ```bash
-# Don't download structures. It assumes paths to input files are provided in the first column of the TSV file (see format section below)
-geometre batch test.tsv result_batch.csv 
-
-#Otherwise
-geometre btach test.tsv result_batch.csv -pdb_dir pdbs/
-
 # Download structures. It extract PDB IDs from the first column of the TSV file and download them in the pdb_dir folder.
-python3 main.py batch 2xqh.pdb result.npy -pdb_dir pdbs/
+python3 __main__.py batch data/input_batch_short.tsv data/result_batch.csv -pdb_dir data/pdbs -threads 4
+
+# If you don't provide the -pdb_dir argument the program don't download structures based on PDB id, 
+# but it expects structures are available in the path provided in the first column of the TSV file (see format section below)
+python3 __main__.py batch data/input_batch_short.tsv data/result_batch.csv -threads 4
+
+# With pip installation
+geometre batch data/input_batch_short.tsv data/result_batch.csv -threads 4
 ```
 
 
@@ -163,6 +162,6 @@ The example of PyMOL drawing in png format with explanation text is below
 - yaw_std: standard deviation of yaw
 
 
-### input_repeatsdb_v4.tsv
-tsv file containining the proteins in the RepeatsDB database (version 4) for batch mode calculations.
+### data/input_batch_short.tsv
+tsv file containing the proteins in the RepeatsDB database (version 4) for batch mode calculations.
 

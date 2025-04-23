@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_axis, rots, units_rots, units_coords, units_ids, chain):
-    """Draw geometrical properties using PyMOL."""
+    """Draw geometrical properties using PyMOL.
+
+    """
     logger.info(f"Drawing geometrical properties for file: {filepath}.")
 
     # Perform PCA on the first unit to find a principal axis for visualization
