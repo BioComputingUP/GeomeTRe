@@ -1,12 +1,13 @@
-numpy
-pandas
-scipy
-scikit-learn
-biopython
+numpy==2.2.2
+pandas==2.2.3
+scipy==1.15.0
+scikit-learn==1.6.0
+biopython==1.84
+tmtools==0.2.0
+scikit-image==0.25.0
+requests==2.32.3
 pymol-bundle
-tmtools
-scikit-image
-requests
 
 # Install these using conda
-# conda install -c conda-forge pymol-open-source
+# conda install -c conda-forge pymol-open-source=2.5.0
+
