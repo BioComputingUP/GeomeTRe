@@ -87,7 +87,7 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     units_seqs = [seq1(''.join(res.get_resname() for res in unit)) for unit in units]
     units_coords = [[res['CA'].get_coord() for res in unit] for unit in units]
 
-    # Calculate geometrical centers and rotations
+    # Calculate geometrical centers (geocenters / centroids)
     geometric_centers = [np.mean(coords, axis=0) for coords in units_coords]
     num_centers = len(geometric_centers)
 
