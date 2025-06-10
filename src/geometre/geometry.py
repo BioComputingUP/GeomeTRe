@@ -12,7 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 def orthogonalize(v, n):
-    """Orthogonalize vector v to vector n."""
+    """Orthogonalize vector v to vector n.
+    
+    Parameters:
+    v -- vector to be orthogonalized
+    n -- reference vector to which v should be orthogonal
+    
+    Returns:
+    Normalized vector orthogonal to n"""
+    
     n_orth = n / norm(n)
     v_orth = v - np.dot(v, n_orth) * n_orth
     v_orth /= norm(v_orth)
@@ -20,7 +28,18 @@ def orthogonalize(v, n):
 
 
 def dihedral_angle(v1, v2, n):
-    """Calculate the dihedral angle between two vectors in a plane defined by a normal vector."""
+    """
+    Calculate the dihedral angle between two vectors v1 and v2, projected onto the plane orthogonal to n.
+    
+    Parameters:
+    v1, v2 -- vectors between which the dihedral angle is measured
+    n -- reference vector defining the plane
+    
+    Returns:
+    Tuple containing:
+        - angle in radians
+        - sign-handedness (+1 or -1) based on the direction of the rotation
+    """
     n = n / norm(n)
     v1_to_orth = v1 / norm(v1)
     v2_to_orth = v2 / norm(v2)
@@ -32,12 +51,29 @@ def dihedral_angle(v1, v2, n):
 
 
 def get_angle(v1, v2):
-    """Calculate the angle between two vectors."""
+    """Calculate the angle between two vectors in radians.
+    
+    Parameters:
+    v1, v2 -- input vectors
+    
+    Returns:
+    Angle in radians. 
+    """
     return np.arccos(np.dot(v1, v2) / (norm(v1) * norm(v2)))
 
 
 def widest_circle(c, data):
-    """Find the widest circular crown within units."""
+    """
+    Function for circle fitting: find the difference between the nearest and farthest point
+    from center c within the units (to be minimized).
+    
+    Parameters:
+    c -- center of the circle
+    data -- list of units' coordinates
+    
+    Returns:
+    Width of the circle (as negative to enable minimization)
+    """
     nearest = -np.inf
     farthest = np.inf
     for unit in data:
@@ -52,7 +88,17 @@ def widest_circle(c, data):
 
 
 def widest_circle_fit(units, centers, window=6):
-    """Calculate curvature of repeat units"""
+    """
+    Fit circular projections to sliding windows of repeat units in a structure to estimate curvature.
+    
+    Parameters:
+    units -- list of arrays of atom coordinates (C-αlpha atom coordinates per repeat unit)
+    centers -- geometric centers of each unit
+    window -- size of sliding window for local fitting (default: 6)
+    
+    Returns:
+    def_centers -- optimized rotation centers for each unit.
+    """
     num_units = len(units)
     index_list = []
     centers_list = []
@@ -108,7 +154,19 @@ def widest_circle_fit(units, centers, window=6):
 
 
 def build_ref_axes(geometric_centers, rot_centers):
-    """Build reference axes for pitch and twist."""
+    """Build reference axes for pitch and twist.
+    
+    Construct orthogonal axes (pitch, twist, yaw) for adjacent repeat units based on their geometric and rotational centers.
+    
+    Parameters:
+    geometric_centers -- geometric centers of each repeat unit
+    rot_centers -- rotation centers computed via circle fitting
+    
+    Returns:
+    pitch_axis -- list of tuples of pitch vectors per unit pair
+    twist_axis -- list of twist vectors, orthogonal to pitch direction
+    rots -- list of rotation objects
+    """
     num_centers = len(geometric_centers)
     pitch_axis = []
     twist_axis = []
@@ -162,7 +220,17 @@ def build_ref_axes(geometric_centers, rot_centers):
 
 
 def get_unit_rotation(coords, seqs, rotations):
-    """Align 2 units using TM-align and return rotation."""
+    """
+    Align 2 repeat units using TM-align to calculate their relative rotation.
+    
+    Parameters:
+    coords -- list of two numpy arrays with 3D coordinates of atoms in two units
+    seqs -- list of two sequences corresponding to coords
+    rotations -- list of two rotation objects to align coordinates before TM-align
+    
+    Returns:
+    alignment -- result of TM-align containing rotation matrix and TM-score
+    """
     coords_1 = coords[0]
     coords_2 = coords[1]
     coords_1 = rotations[0].apply(coords_1)
