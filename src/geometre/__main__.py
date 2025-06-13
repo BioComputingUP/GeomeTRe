@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 import logging
 from pathlib import Path
+import time
 
 import numpy as np
 import pandas as pd
@@ -32,6 +33,7 @@ def command_line():
                                                          'If not provided assume file path in the input TSV')
     batch_parser.add_argument('-threads', type=int, default=1,
                               help='Number of threads for parallel processing')
+    batch_parser.add_argument('-timing_log', help='Log file to write timing info per structure.')
 
     drawing_parser = subparsers.add_parser('pymol', help='Generate PyMOL visualization from saved .npy data.')
     drawing_parser.add_argument("pdb_filepath", help="Path to the input PDB file.")
@@ -42,7 +44,7 @@ def command_line():
     return arg_parser.parse_args()
 
 
-def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
+def batch_compute(tsv_path, pdb_dir, output_path, threads=4, timing_log_path=None):
     df_input = pd.read_csv(tsv_path, sep="\t",
                            dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
 
@@ -53,6 +55,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
 
     # Iterate over all structures
     df_list = []
+    timing_logs = []
     columns = ['pdb_id', 'chain', 'region_start', 'region_end', 'curvature', 'twist', 'twist_hand', 'pitch', 'pitch_hand', 'tmscore', 'yaw']
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -64,22 +67,30 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
             fs[executor.submit(compute, structure_file, row["chain"], row["units"], ins_ids)] = structure_file
 
         for future in as_completed(fs):
+            structure_file, chain_id = fs[future]
+            start_time = time.time()
             try:
                 df_, obj_ = future.result()
-            except Exception as exc:
-                logger.error(f'Execution error {fs[future]}')
-            else:
+                elapsed = time.time() - start_time
                 if df_ is not None and not df_.empty:
-                    df_[['region_start', 'region_end']] = [df_.iloc[0]['unit_start'], df_.iloc[-3]['unit_end']]
+                    df_[["region_start", "region_end"]] = [df_.iloc[0]["unit_start"], df_.iloc[-3]["unit_end"]]
                     df_ = pd.merge(df_.loc[df_['unit_start'] == 'mean', columns],
                                    df_.loc[df_['unit_start'] == 'std', columns],
                                    on=['pdb_id', 'chain'], suffixes=('_mean', '_std')).round(3)
                     df_list.append(df_)
+                    timing_logs.append([structure_file, chain_id, "success", round(elapsed, 3)])
                 else:
-                    logger.info(f'Empty output {fs[future]}')
+                    logger.info(f'Empty output {structure_file}')
+                    timing_logs.append([structure_file, chain_id, "empty_output", round(elapsed, 3)])
+            except Exception as exc:
+                logger.error(f'Execution error {structure_file}')
+                timing_logs.append([structure_file, chain_id, "fail", -1])
 
-    pd.concat(df_list).to_csv(output_path, index=False, sep=",")
-    return
+    if df_list:
+        pd.concat(df_list).to_csv(output_path, index=False, sep=",")
+
+    if timing_log_path:
+        pd.DataFrame(timing_logs, columns=["pdb_file", "chain", "status", "time_sec"]).to_csv(timing_log_path, index=False)
 
 
 def main():
@@ -131,7 +142,8 @@ def main():
         batch_compute(args.filepath,
                       args.pdb_dir,
                       args.out_file,
-                      threads=args.threads)
+                      threads=args.threads,
+                      timing_log_path=args.timing_log)
         # logger.info(f"Batch mode results saved to: {result_path}")
 
     # Load saved PyMOL data and launch pymol
