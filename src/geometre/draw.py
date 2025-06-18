@@ -41,7 +41,7 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
             unit_vector = units_rots[i] @ (rots[i][0].apply(unit_vector))
             unit_vector = rots[i][1].apply(unit_vector, inverse=True)
 
-    # Uncommented lines preserved from original function:
+   
     for i in range(len(rot_centers)):
         cmd.pseudoatom('rot_centers', pos=tuple(rot_centers[i]))
 
@@ -90,7 +90,7 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     cmd.distance('pitch_axis', selection1='point1', selection2='pitch_point')
     cmd.distance('curvature_axis', selection1='point1', selection2='curvature_point')
 
-    # Uncommented lines preserved from original function:
+
     # cmd.select('point1_1', selection='model ref_1 and name PS{}'.format(str(i + 1)))
     # cmd.select('point1_2', selection='model ref_2 and name PS{}'.format(str(i + 1)))
     # cmd.select('point2_1', selection='model ref_1 and name PS{}'.format(str(i + 2)))

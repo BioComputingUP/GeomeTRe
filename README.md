@@ -24,7 +24,7 @@ The algorithm also determines handedness, defined by the roll direction of movem
 ## Installation
 The software can be installed with `pip` or you can just clone it and use it. 
 
-In order to enable Pymol visualization (optional), we recommend to create a new environment and install the Pymol 
+In order to enable PyMOL visualization (optional), we recommend to create a new environment and install the PyMOL
 bundle first and after all the other dependencies. 
 
 Installation with pip
@@ -32,13 +32,13 @@ Installation with pip
 pip install git+https://github.com/BioComputingUP/GeomeTRe.git
 ```
 
-Installation with Conda and Pymol
+Installation with Conda and PyMOL
 ```bash
 # Create and activate a new conda environment
 conda create -n geometre
 conda activate geometre
 
-# Install Pymol
+# Install PyMOL
 conda install -c conda-forge -c schrodinger pymol-bundle
 
 # Clone the GeomeTRe repository
@@ -52,19 +52,22 @@ export PYTHONPATH="${PYTHONPATH}:/home/user/Desktop/GeomeTRe/src/"
 The following dependencies are required to run:
 - Python 3.9 or higher
 - Packages (installed automatically via `pip install`):
-  - numpy
-  - pandas
-  - scikit-learn
-  - scikit-image
-  - biopython
-  - tmtools
+  - numpy==2.2.2
+  - pandas==2.2.3
+  - scipy==1.15.0
+  - scikit-learn==1.6.0
+  - biopython==1.84
+  - tmtools==0.2.0
+  - scikit-image==0.25.0
+  - requests==2.32.3
   
+
 **PyMOL**: PyMOL must be installed via `conda` before running the package if you intend to enable visualization.
-`conda install -c conda-forge pymol-open-source`
+`conda install -c conda-forge pymol-open-source=2.5.0`
 
 ## Usage
 GeomeTRe can be used in single mode to process a single structure, in batch mode to process an
-entire dataset and it can be executed for just rendering its results in Pymol. 
+entire dataset and it can be executed for just rendering its results in PyMOL. 
 
 Single structure execution 
 ```bash
@@ -75,7 +78,7 @@ python3 __main__.py single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217
 geometre single 2xqh.pdb A result.csv 161_175,176_189,190_203,204_217,218_233,234_249,250_263,264_276,305_326,327_350,373_392,393_416 -ins_def 351_372
 ```
 
-Visualize output in Pymol 
+Visualize output in PyMOL 
 ```bash
 # Visualize without pip
 python3 __main__.py draw 2xqh.pdb result.npy
@@ -131,9 +134,9 @@ CSV table with the computed parameters (.csv)
 	  means a bad performance on the algorithm for that unit pair.
  	- Additionally, the last 2 rows are showing mean and standard deviations of each parameter. The first column is all zeros, since the rows refer to the unit and the unit before it.
 
-Pymol parameters for drawing (.npy)
+PyMOL parameters for drawing (.npy)
 
-### Pymol drawing
+### PyMOL drawing
 PyMOL drawing contains the following axis:
 	- In red, twist axis of each repeat unit(RU) which is always parallel to the longest dimension of the protein
 	- In green, pitch axis of each RU

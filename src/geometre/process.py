@@ -25,8 +25,8 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     file_type = Path(filepath).suffix.lower()
 
     if file_type == '.cif':
-        parser = FastMMCIFParser(QUIET=True)
-    elif file_type == '.pdb':
+    	parser = FastMMCIFParser(QUIET=True)
+    if file_type == '.pdb':
         parser = PDBParser(QUIET=True)
     else:
         raise ValueError(f"Unsupported file type: {file_type}. Provide a '.pdb' or '.cif' file.")
