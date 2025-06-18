@@ -96,7 +96,7 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     logger.debug("Geometric centers and rotation centers calculated.")
 
     # Calculate rotation angle (yaw angle) for each pair of units
-    rot_angles = [get_angle(geometric_centers[i] - rot_centers[i], geometric_centers[i + 1] - rot_centers[i])
+    rot_angles = [get_angle(rot_centers[i] - geometric_centers[i], rot_centers[i] - geometric_centers[i + 1])
         for i in range(num_centers - 1)]
 
     # Calculate the axes
