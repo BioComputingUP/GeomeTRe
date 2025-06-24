@@ -26,7 +26,7 @@ def command_line():
 
     # Batch mode
     batch_parser = subparsers.add_parser('batch', help='Batch process files from a TSV input')
-    batch_parser.add_argument('filepath', help='TSV file with list of structures and units')
+    batch_parser.add_argument('filepath', help='TSV file with list of structures, units and insertions')
     batch_parser.add_argument('out_file', help='Output CSV file for results')
     batch_parser.add_argument('-pdb_dir', help='PDB files directory for download. '
                                                          'If not provided assume file path in the input TSV')
@@ -67,7 +67,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
             try:
                 df_, obj_ = future.result()
             except Exception as exc:
-                logger.error(f'Execution error {fs[future]}')
+                logger.error(f'Execution error {fs[future]} {future} {exc}')
             else:
                 if df_ is not None and not df_.empty:
                     df_[['region_start', 'region_end']] = [df_.iloc[0]['unit_start'], df_.iloc[-3]['unit_end']]
