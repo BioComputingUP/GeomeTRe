@@ -56,7 +56,6 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
         # Length of the vectors
         l = np.sqrt(np.sum((geometric_centers[i+1] - geometric_centers[i])**2, axis=0)) * 1.5
 
-
         twist_ref = geometric_centers[i] + l * twist_axis[i][0]
         pitch_ref = geometric_centers[i] + l * pitch_axis[i][0]
         curvature_ref = geometric_centers[i] + l * np.cross(pitch_axis[i][0], twist_axis[i][0])
@@ -65,18 +64,17 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
         cmd.pseudoatom('pitch_ref', pos=tuple(pitch_ref))
         cmd.pseudoatom('curvature_ref', pos=tuple(curvature_ref))
 
-        if i >= 0:
-            cmd.select('point1', selection='model geo_centers and name PS{}'.format(str(i + 1)))
-            # cmd.select('point2', selection='model geo_centers and name PS{}'.format(str(i + 2)))
-            # cmd.select('rot_center', selection='model rot_centers and name PS{}'.format(str(i + 1)))
-            cmd.select('twist_point', selection='model twist_ref and name PS{}'.format(str(i + 1)))
-            cmd.select('pitch_point', selection='model pitch_ref and name PS{}'.format(str(i + 1)))
-            cmd.select('curvature_point', selection='model curvature_ref and name PS{}'.format(str(i + 1)))
-            # cmd.angle('rot_angle', selection1='point1', selection2='rot_center', selection3='point2')
-            # cmd.distance('superaxis', selection1='point1', selection2='point2')
-            cmd.distance('twist_axis', selection1='point1', selection2='twist_point')
-            cmd.distance('pitch_axis', selection1='point1', selection2='pitch_point')
-            cmd.distance('curvature_axis', selection1='point1', selection2='curvature_point')
+        cmd.select('point1', selection='model geo_centers and name PS{}'.format(str(i + 1)))
+        # cmd.select('point2', selection='model geo_centers and name PS{}'.format(str(i + 2)))
+        # cmd.select('rot_center', selection='model rot_centers and name PS{}'.format(str(i + 1)))
+        cmd.select('twist_point', selection='model twist_ref and name PS{}'.format(str(i + 1)))
+        cmd.select('pitch_point', selection='model pitch_ref and name PS{}'.format(str(i + 1)))
+        cmd.select('curvature_point', selection='model curvature_ref and name PS{}'.format(str(i + 1)))
+        # cmd.angle('rot_angle', selection1='point1', selection2='rot_center', selection3='point2')
+        # cmd.distance('superaxis', selection1='point1', selection2='point2')
+        cmd.distance('twist_axis', selection1='point1', selection2='twist_point')
+        cmd.distance('pitch_axis', selection1='point1', selection2='pitch_point')
+        cmd.distance('curvature_axis', selection1='point1', selection2='curvature_point')
 
 
     # Place pseudoatoms for the last geometric center
