@@ -23,6 +23,7 @@ def command_line():
     single_parser.add_argument('out_file', help='Output CSV file path')
     single_parser.add_argument('unit_def', help='Units (10_50,51_100,...)')
     single_parser.add_argument('-ins_def', help='Insertions (same as units)')
+    single_parser.add_argument('-window', default=6, help='Window size for circle fit')
 
     # Batch mode
     batch_parser = subparsers.add_parser('batch', help='Batch process files from a TSV input')
@@ -43,6 +44,7 @@ def command_line():
 
 
 def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
+
     df_input = pd.read_csv(tsv_path, sep="\t",
                            dtype={"pdb_file": str, "chain": str, "units": str, "insertion": str})
 
@@ -61,7 +63,7 @@ def batch_compute(tsv_path, pdb_dir, output_path, threads=4):
             structure_file = row["pdb_file"] if pdb_dir is None else "{}/{}.cif".format(pdb_dir, row["pdb_file"].split("/")[-1][:4])
             ins_ids = None if pd.isnull(row['insertion']) else row["insertion"]
 
-            fs[executor.submit(compute, structure_file, row["chain"], row["units"], ins_ids)] = structure_file
+            fs[executor.submit(compute, structure_file, row["chain"], row["units"], ins_ids, 6)] = structure_file
 
         for future in as_completed(fs):
             try:
@@ -108,9 +110,10 @@ def main():
     # Single mode execution
     if args.mode == 'single':
         df, obj = compute(filepath=args.filepath,
-                     chain=args.chain,
-                     units_ids=args.unit_def,
-                     ins_ids=args.ins_def)
+                         chain=args.chain,
+                         units_ids=args.unit_def,
+                         ins_ids=args.ins_def,
+                            window=args.window)
 
         # Save or display output
         if df is not None:

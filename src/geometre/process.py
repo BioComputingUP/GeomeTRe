@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 # Use the shared logger
 logger = logging.getLogger(__name__)
 
-def compute(filepath, chain, units_ids, ins_ids=None):
+def compute(filepath, chain, units_ids, ins_ids=None, window=6):
     """Calculate geometrical parameters for repeats."""
     logger.info(f"Processing file: {filepath}, chain: {chain}")
 
@@ -33,8 +33,8 @@ def compute(filepath, chain, units_ids, ins_ids=None):
 
     try:
         structure = parser.get_structure('structure', Path(filepath))
-    except:
-        logger.error(f"Structure parse error {filepath}")
+    except Exception as ex:
+        logger.error(f"Structure parse error {filepath} {ex}")
         return None, None
 
     # Ensure structure is loaded
@@ -92,7 +92,7 @@ def compute(filepath, chain, units_ids, ins_ids=None):
     num_centers = len(geometric_centers)
 
     # Find the center of the circle
-    rot_centers = widest_circle_fit(units_coords, geometric_centers)
+    rot_centers = widest_circle_fit(units_coords, geometric_centers, window=window)
     logger.debug("Geometric centers and rotation centers calculated.")
 
     # Calculate rotation angle (yaw angle) for each pair of units

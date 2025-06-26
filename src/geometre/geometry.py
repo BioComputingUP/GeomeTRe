@@ -87,7 +87,7 @@ def widest_circle(c, data):
     return nearest - farthest  # Minimize the opposite of the width
 
 
-def widest_circle_fit(units, centers, window=6):
+def widest_circle_fit(units, centers, window):
     """
     Fit circular projections to sliding windows of repeat units in a structure to estimate curvature.
     
@@ -100,9 +100,9 @@ def widest_circle_fit(units, centers, window=6):
     def_centers -- optimized rotation centers for each unit.
     """
     num_units = len(units)
-    index_list = []
-    centers_list = []
-    score_list = []
+    index_list = []  # Units in the windows
+    centers_list = []  # The coordinates of unit geocenters after being projected in the PCA plane
+    score_list = []  # The fitting score for each window
 
     for i in range(max(num_units - window + 1, 1)):
         min_index = i
@@ -137,17 +137,17 @@ def widest_circle_fit(units, centers, window=6):
         score_list.append(-res.fun)
 
     # Select the widest crown
-    def_centers = np.empty((num_units - 1, 3))
-    best_score = np.full(num_units - 1, np.inf)
-    for center, indexes, score in zip(centers_list, index_list, score_list):  # For each unit pair, select center corresponding to the widest crown
-        act_indexes = indexes[:-1]
-        score_to_confront = best_score[act_indexes]
-        centers_to_confront = def_centers[act_indexes]
-        mask = score_to_confront > score
-        centers_to_confront[mask] = np.vstack([center for _ in range(len(centers_to_confront[mask]))])
-        score_to_confront[mask] = score
-        best_score[act_indexes] = score_to_confront
-        def_centers[act_indexes] = centers_to_confront
+    def_centers = np.empty((num_units, 3))
+    best_score = np.full(num_units, -np.inf)
+
+    # For each unit of each window, select centers corresponding to the best score (widest crown)
+    # Iterate windows
+    for center, indexes, score in zip(centers_list, index_list, score_list):
+        # Iterate units
+        for i in indexes:
+            if score > best_score[i]:
+                best_score[i] = score
+                def_centers[i] = center
 
     logger.debug("Widest circle fit completed.")
     return def_centers
