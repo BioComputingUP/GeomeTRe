@@ -95,7 +95,7 @@ def compute(filepath, chain, units_ids, ins_ids=None, window=6):
     rot_centers = widest_circle_fit(units_coords, geometric_centers, window=window)
     logger.debug("Geometric centers and rotation centers calculated.")
 
-    # Calculate rotation angle (yaw angle) for each pair of units
+    # Calculate rotation angle (yaw angle / curvature) for each pair of units
     rot_angles = [get_angle(rot_centers[i] - geometric_centers[i], rot_centers[i] - geometric_centers[i + 1])
         for i in range(num_centers - 1)]
 
@@ -103,10 +103,10 @@ def compute(filepath, chain, units_ids, ins_ids=None, window=6):
     pitch_axis, twist_axis, rots = build_ref_axes(geometric_centers, rot_centers)
     logger.debug("Reference axes built for geometry calculations.")
 
-    # Calculate rotations and scores
+    # Calculate rotations and scores with TM-align
     units_rots, tmscores = [], []
     for i in range(num_centers - 1):
-        # TM-align
+
         # We provide rots to superimpose the reference systems of the two consecutive units
         alignment = get_unit_rotation(units_coords[i:i + 2], units_seqs[i:i + 2], rots[i])
         units_rots.append(alignment.u)  # Rotation matrix

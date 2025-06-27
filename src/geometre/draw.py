@@ -31,14 +31,14 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
     for i in range(num_centers):
         cmd.pseudoatom('geo_centers', pos=tuple(geometric_centers[i]))
         # Uncommented lines preserved from original function:
-        # cmd.pseudoatom('ref_1', pos=tuple(geometric_centers[i] + 6 * unit_vector))
-        # cmd.pseudoatom('ref_2', pos=tuple(geometric_centers[i] - 6 * unit_vector))
-        # cmd.select('unit_1', selection='model ref_1 and name PS{}'.format(str(i + 1)))
-        # cmd.select('unit_2', selection='model ref_2 and name PS{}'.format(str(i + 1)))
-        # cmd.distance('unit_vector', selection1='unit_1', selection2='unit_2')
+        cmd.pseudoatom('ref_1', pos=tuple(geometric_centers[i] + 6 * unit_vector))
+        cmd.pseudoatom('ref_2', pos=tuple(geometric_centers[i]))
+        cmd.select('unit_1', selection='model ref_1 and name PS{}'.format(str(i + 1)))
+        cmd.select('unit_2', selection='model ref_2 and name PS{}'.format(str(i + 1)))
+        cmd.distance('unit_vector', selection1='unit_1', selection2='unit_2')
 
         if i < num_centers - 1:
-            unit_vector = units_rots[i] @ (rots[i][0].apply(unit_vector))
+            unit_vector = units_rots[i] @ (rots[i][0].apply(unit_vector))  # matrix multiplication
             unit_vector = rots[i][1].apply(unit_vector, inverse=True)
 
    
@@ -75,6 +75,9 @@ def pymol_drawing(filepath, geometric_centers, rot_centers, twist_axis, pitch_ax
         cmd.distance('twist_axis', selection1='point1', selection2='twist_point')
         cmd.distance('pitch_axis', selection1='point1', selection2='pitch_point')
         cmd.distance('curvature_axis', selection1='point1', selection2='curvature_point')
+
+
+
 
 
     # Place pseudoatoms for the last geometric center

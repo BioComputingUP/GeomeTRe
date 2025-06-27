@@ -126,21 +126,21 @@ def widest_circle_fit(units, centers, window):
         # considering all the projected coordinates of the C-alpha
         circle = CircleModel()
         circle.estimate(pca_centers)
-        res = minimize(widest_circle, circle.params[0:2], args=(data_transformed))
+        res = minimize(widest_circle, circle.params[0:2], args=data_transformed)
 
-        center = res.x
+        center = res.x  # The best argument of the minimization result
         centers_list.append(pca.inverse_transform(center))
         index_list.append([*range(min_index, max_index)])
 
-        # Fun is the value of the objective function at x
-        # Here we are changing the sign for keeping the smallest crown
+        # Fun is the value of the objective function at x (i.e. the inverse of the best crown width)
+        # Here we are changing the sign for keeping the best crown
         score_list.append(-res.fun)
 
-    # Select the widest crown
+
+    # For each unit of each window, select centers corresponding to the best score (widest crown)
     def_centers = np.empty((num_units, 3))
     best_score = np.full(num_units, -np.inf)
 
-    # For each unit of each window, select centers corresponding to the best score (widest crown)
     # Iterate windows
     for center, indexes, score in zip(centers_list, index_list, score_list):
         # Iterate units
