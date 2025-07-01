@@ -1,5 +1,7 @@
 # GeomeTRe 
 
+[![DOI](https://zenodo.org/badge/696381052.svg)](https://doi.org/10.5281/zenodo.15782520)
+
 GeomeTRe calculates geometrical properties of tandem repeat proteins. 
 It requires a protein structure and the start and end positions 
 of each repeat unit (with optional insertion positions) as input. 
